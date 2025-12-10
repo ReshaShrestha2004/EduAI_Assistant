@@ -41,17 +41,22 @@ def execute_query(query, params=None, fetch=False, fetch_one=False):
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
         cursor.execute(query, params or ())
-        conn.commit()
 
         if fetch_one:
-            return cursor.fetchone()
+            result =  cursor.fetchone()
 
-        if fetch:
-            return cursor.fetchall()
+        elif fetch:
+            result = cursor.fetchall()
+        else:
+            result = cursor.lastrowid
+        
+        conn.commit()
 
-        return cursor.lastrowid
+        return result
     
     except mysql.connector.Error as e:
+        if conn:
+            conn.rollback()
         raise e
     
     finally:
