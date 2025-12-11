@@ -41,7 +41,6 @@ const Register = () => {
     setSuccess(false);
     setLoading(true);
 
-    // Validation
     if (!formData.email || !formData.password || !formData.fullName) {
       setError('Please fill in all required fields');
       setLoading(false);
@@ -60,8 +59,11 @@ const Register = () => {
       return;
     }
 
-    // Register
-    const result = await register(formData.email, formData.password, formData.fullName);
+    const result = await register(
+      formData.email,
+      formData.password,
+      formData.fullName
+    );
 
     if (result.success) {
       setSuccess(true);
@@ -76,21 +78,110 @@ const Register = () => {
   };
 
   return (
-    <Container component="main" maxWidth="xs">
+    <Box
+      sx={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #0b0b0d, #0f0f13, #0c0c10)',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        position: 'relative',
+        overflow: 'hidden',
+        p: 2,
+      }}
+    >
+
       <Box
         sx={{
-          marginTop: 8,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
+          position: 'absolute',
+          width: 1200,
+          height: 1200,
+          borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(203,164,241,0.20), transparent 60%)',
+          top: '-20%',
+          left: '-10%',
+          filter: 'blur(75px)',
+          animation: 'float1 12s infinite ease-in-out',
         }}
-      >
-        <Paper elevation={3} sx={{ padding: 4, width: '100%' }}>
-          <Typography component="h1" variant="h5" align="center" gutterBottom>
-            EduAI Assistant
+      />
+      <Box
+        sx={{
+          position: 'absolute',
+          width: 900,
+          height: 900,
+          borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(246,200,183,0.18), transparent 70%)',
+          bottom: '-25%',
+          right: '-10%',
+          filter: 'blur(75px)',
+          animation: 'float2 14s infinite ease-in-out',
+        }}
+      />
+
+      <style>
+        {`
+          @keyframes float1 {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(40px); }
+            100% { transform: translateY(0px); }
+          }
+          @keyframes float2 {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-35px); }
+            100% { transform: translateY(0px); }
+          }
+          @keyframes wiggle {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+          }
+        `}
+      </style>
+
+      <Container maxWidth="sm">
+        <Paper
+          elevation={10}
+          sx={{
+            p: 5,
+            borderRadius: 4,
+            background: 'rgba(20,20,25,0.75)',
+            backdropFilter: 'blur(14px)',
+            border: '1px solid rgba(255,255,255,0.06)',
+            position: 'relative',
+            transition: '0.4s ease',
+
+            '&:hover': {
+              boxShadow: '0 0 30px rgba(203,164,241,0.35)',
+              borderColor: 'rgba(203,164,241,0.35)',
+            },
+
+            animation: 'fadeIn 0.9s ease forwards',
+            '@keyframes fadeIn': {
+              '0%': { opacity: 0, transform: 'translateY(30px)' },
+              '100%': { opacity: 1, transform: 'translateY(0)' },
+            },
+          }}
+        >
+
+          <Typography
+            variant="h4"
+            align="center"
+            sx={{
+              fontWeight: 700,
+              mb: 1,
+              background: 'linear-gradient(90deg,#CBA4F1,#E8B9D4,#F6C8B7)',
+              WebkitBackgroundClip: 'text',
+              color: 'transparent',
+            }}
+          >
+            Create Your Account
           </Typography>
-          <Typography variant="body2" align="center" color="textSecondary" sx={{ mb: 3 }}>
-            Create your account
+
+          <Typography
+            variant="body1"
+            align="center"
+            sx={{ mb: 4, color: '#cfcfcf' }}
+          >
+            Join EduAI and start your learning journey.
           </Typography>
 
           {error && (
@@ -98,92 +189,86 @@ const Register = () => {
               {error}
             </Alert>
           )}
-
           {success && (
             <Alert severity="success" sx={{ mb: 2 }}>
-              Registration successful! Redirecting to login...
+              Registration successful! Redirecting...
             </Alert>
           )}
 
           <Box component="form" onSubmit={handleSubmit} noValidate>
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              id="fullName"
-              label="Full Name"
-              name="fullName"
-              autoComplete="name"
-              autoFocus
-              value={formData.fullName}
-              onChange={handleChange}
-              disabled={loading || success}
-            />
-
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              id="email"
-              label="Email Address"
-              name="email"
-              autoComplete="email"
-              value={formData.email}
-              onChange={handleChange}
-              disabled={loading || success}
-            />
-
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              name="password"
-              label="Password"
-              type="password"
-              id="password"
-              autoComplete="new-password"
-              value={formData.password}
-              onChange={handleChange}
-              disabled={loading || success}
-              helperText="Minimum 6 characters"
-            />
-
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              name="confirmPassword"
-              label="Confirm Password"
-              type="password"
-              id="confirmPassword"
-              autoComplete="new-password"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              disabled={loading || success}
-            />
+            {['fullName', 'email', 'password', 'confirmPassword'].map((field) => (
+              <TextField
+                key={field}
+                fullWidth
+                required
+                type={field.includes('password') ? 'password' : 'text'}
+                name={field}
+                label={
+                  field === 'fullName'
+                    ? 'Full Name'
+                    : field === 'email'
+                    ? 'Email Address'
+                    : field === 'password'
+                    ? 'Password'
+                    : 'Confirm Password'
+                }
+                value={formData[field]}
+                onChange={handleChange}
+                disabled={loading || success}
+                sx={{
+                  input: { color: 'white' },
+                  label: { color: '#b8b8b8' },
+                  mb: 2,
+                  '& .MuiOutlinedInput-root': {
+                    '& fieldset': { borderColor: '#3d3d3d' },
+                    '&:hover fieldset': { borderColor: '#CBA4F1' },
+                    transition: '0.25s',
+                    animation: 'wiggle 0.2s ease',
+                  },
+                }}
+              />
+            ))}
 
             <Button
               type="submit"
               fullWidth
               variant="contained"
-              sx={{ mt: 3, mb: 2 }}
               disabled={loading || success}
+              sx={{
+                py: 1.5,
+                borderRadius: 3,
+                mt: 2,
+                background: 'linear-gradient(90deg,#CBA4F1,#E8B9D4,#F6C8B7)',
+                boxShadow: '0 0 20px rgba(203,164,241,0.35)',
+                fontWeight: 700,
+                fontSize: '1.05rem',
+
+                '&:hover': {
+                  background: 'linear-gradient(90deg,#E8B9D4,#CBA4F1,#F6C8B7)',
+                  boxShadow: '0 0 25px rgba(203,164,241,0.45)',
+                },
+              }}
             >
-              {loading ? <CircularProgress size={24} /> : 'Sign Up'}
+              {loading ? <CircularProgress size={26} color="inherit" /> : 'Create Account'}
             </Button>
 
-            <Box sx={{ textAlign: 'center' }}>
-              <Typography variant="body2">
-                Already have an account?{' '}
-                <Link to="/login" style={{ textDecoration: 'none', color: '#1976d2' }}>
-                  Sign In
-                </Link>
-              </Typography>
-            </Box>
+            <Typography align="center" sx={{ mt: 3, color: '#ccc' }}>
+              Already have an account?{' '}
+              <Link
+                to="/login"
+                style={{
+                  color: '#E8B9D4',
+                  textDecoration: 'none',
+                  fontWeight: 600,
+                }}
+              >
+                Sign In
+              </Link>
+            </Typography>
           </Box>
         </Paper>
-      </Box>
-    </Container>
+      </Container>
+    </Box>
   );
 };
 
