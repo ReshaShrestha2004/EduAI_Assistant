@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import logo from "../assets/logo.png";
 
 import {
   Box,
@@ -223,7 +224,16 @@ export default function Login() {
                   boxShadow: "0 6px 18px rgba(120,70,190,0.35)",
                 }}
               >
-                <MenuBook sx={{ color: "#fff", fontSize: 28 }} />
+                <img
+                  src={logo}
+                  alt="EduAI Logo"
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                    borderRadius: "50%",
+                  }}
+              />
               </Box>
               <Typography variant="h5" sx={{ fontWeight: 800 }}>
                 EduAI

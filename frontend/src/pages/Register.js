@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import logo from "../assets/logo.png";
 import {
   Container,
   Box,
@@ -10,17 +11,73 @@ import {
   Paper,
   Alert,
   CircularProgress,
+  InputAdornment,
 } from '@mui/material';
 
-const Register = () => {
+import {
+  Email,
+  Lock,
+  Person,
+} from "@mui/icons-material";
+
+import { styled, keyframes } from "@mui/material/styles";
+
+const floatCard = keyframes`
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(10px); }
+  100% { transform: translateY(0px); }
+`;
+
+const glowPulse = keyframes`
+  0% { opacity: .35; }
+  50% { opacity: .6; }
+  100% { opacity: .35; }
+`;
+
+const GlassCard = styled(Paper)(() => ({
+  backdropFilter: "blur(18px)",
+  background: "rgba(255,255,255,0.06)",
+  borderRadius: 22,
+  padding: 40,
+  border: "1px solid rgba(255,255,255,0.12)",
+  boxShadow: "0 12px 42px rgba(0,0,0,0.45)",
+  animation: `${floatCard} 9s ease-in-out infinite`,
+  position: "relative",
+  overflow: "hidden",
+}));
+
+const StyledTextField = styled(TextField)(() => ({
+  "& .MuiOutlinedInput-root": {
+    borderRadius: 12,
+    background: "rgba(255,255,255,0.08)",
+    color: "#F5F2FF",
+    "& fieldset": {
+      borderColor: "rgba(255,255,255,0.15)",
+    },
+    "& input": {
+      color: "#F5F2FF",
+    },
+    "&:hover fieldset": {
+      borderColor: "rgba(255,255,255,0.25)",
+    },
+    "&.Mui-focused fieldset": {
+      borderColor: "#A986FF",
+    },
+  },
+  "& label": {
+    color: "rgba(245,242,255,0.65)",
+  },
+}));
+
+export default function Register() {
   const navigate = useNavigate();
   const { register } = useAuth();
 
   const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    confirmPassword: '',
-    fullName: '',
+    email: "",
+    password: "",
+    confirmPassword: "",
+    fullName: "",
   });
 
   const [error, setError] = useState('');
@@ -81,10 +138,10 @@ const Register = () => {
     <Box
       sx={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #0b0b0d, #0f0f13, #0c0c10)',
+        background: 'linear-gradient(180deg,#0F0B1A 0%, #1A122A 100%)',
         display: 'flex',
-        justifyContent: 'center',
         alignItems: 'center',
+        py: { xs: 6, md: 10 },
         position: 'relative',
         overflow: 'hidden',
         p: 2,
@@ -93,183 +150,185 @@ const Register = () => {
 
       <Box
         sx={{
-          position: 'absolute',
-          width: 1200,
-          height: 1200,
-          borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(203,164,241,0.20), transparent 60%)',
-          top: '-20%',
-          left: '-10%',
-          filter: 'blur(75px)',
-          animation: 'float1 12s infinite ease-in-out',
-        }}
-      />
-      <Box
-        sx={{
-          position: 'absolute',
-          width: 900,
-          height: 900,
-          borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(246,200,183,0.18), transparent 70%)',
-          bottom: '-25%',
-          right: '-10%',
-          filter: 'blur(75px)',
-          animation: 'float2 14s infinite ease-in-out',
+          position: "absolute",
+          inset: 0,
+          background:
+            "radial-gradient(circle at top left, rgba(169,134,255,0.18), transparent 45%)",
+          animation: `${glowPulse} 8s infinite`,
         }}
       />
 
-      <style>
-        {`
-          @keyframes float1 {
-            0% { transform: translateY(0px); }
-            50% { transform: translateY(40px); }
-            100% { transform: translateY(0px); }
-          }
-          @keyframes float2 {
-            0% { transform: translateY(0px); }
-            50% { transform: translateY(-35px); }
-            100% { transform: translateY(0px); }
-          }
-          @keyframes wiggle {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.02); }
-          }
-        `}
-      </style>
+      <Container maxWidth="sm" sx={{ position: "relative", zIndex: 2 }}>
+        <GlassCard elevation={0}>
+          {/* logo */}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+            <Box
+              sx={{
+                width: 52,
+                height: 52,
+                borderRadius: 12,
+                background: "linear-gradient(135deg,#7D5EF9,#9F6EFF)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow: "0 6px 18px rgba(120,70,190,0.35)",
+              }}
+            >
+             <img
+                src={logo}
+                alt="EduAI Logo"
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  borderRadius: "50%",
+                }}
+            />
+            </Box>
+            <Typography variant="h5" fontWeight={800} color="#F5F2FF">
+              EduAI
+            </Typography>
+          </Box>
 
-      <Container maxWidth="sm">
-        <Paper
-          elevation={10}
-          sx={{
-            p: 5,
-            borderRadius: 4,
-            background: 'rgba(20,20,25,0.75)',
-            backdropFilter: 'blur(14px)',
-            border: '1px solid rgba(255,255,255,0.06)',
-            position: 'relative',
-            transition: '0.4s ease',
-
-            '&:hover': {
-              boxShadow: '0 0 30px rgba(203,164,241,0.35)',
-              borderColor: 'rgba(203,164,241,0.35)',
-            },
-
-            animation: 'fadeIn 0.9s ease forwards',
-            '@keyframes fadeIn': {
-              '0%': { opacity: 0, transform: 'translateY(30px)' },
-              '100%': { opacity: 1, transform: 'translateY(0)' },
-            },
-          }}
-        >
-
+          {/* headings */}
           <Typography
             variant="h4"
-            align="center"
-            sx={{
-              fontWeight: 700,
-              mb: 1,
-              background: 'linear-gradient(90deg,#CBA4F1,#E8B9D4,#F6C8B7)',
-              WebkitBackgroundClip: 'text',
-              color: 'transparent',
-            }}
+            fontWeight={800}
+            sx={{ color: "#F5F2FF", mb: 0.5 }}
           >
-            Create Your Account
+            Create your EduAI account
           </Typography>
 
           <Typography
-            variant="body1"
-            align="center"
-            sx={{ mb: 4, color: '#cfcfcf' }}
+            sx={{
+              color: "rgba(245,242,255,0.8)",
+              mb: 3,
+            }}
           >
-            Join EduAI and start your learning journey.
+            Build your personalized AI learning assistant
           </Typography>
 
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
+          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
           {success && (
             <Alert severity="success" sx={{ mb: 2 }}>
               Registration successful! Redirecting...
             </Alert>
           )}
 
-          <Box component="form" onSubmit={handleSubmit} noValidate>
-            {['fullName', 'email', 'password', 'confirmPassword'].map((field) => (
-              <TextField
-                key={field}
-                fullWidth
-                required
-                type={field.includes('password') ? 'password' : 'text'}
-                name={field}
-                label={
-                  field === 'fullName'
-                    ? 'Full Name'
-                    : field === 'email'
-                    ? 'Email Address'
-                    : field === 'password'
-                    ? 'Password'
-                    : 'Confirm Password'
-                }
-                value={formData[field]}
-                onChange={handleChange}
-                disabled={loading || success}
-                sx={{
-                  input: { color: 'white' },
-                  label: { color: '#b8b8b8' },
-                  mb: 2,
-                  '& .MuiOutlinedInput-root': {
-                    '& fieldset': { borderColor: '#3d3d3d' },
-                    '&:hover fieldset': { borderColor: '#CBA4F1' },
-                    transition: '0.25s',
-                    animation: 'wiggle 0.2s ease',
-                  },
-                }}
-              />
-            ))}
+          {/* form */}
+          <Box component="form" onSubmit={handleSubmit}>
+            <StyledTextField
+              fullWidth
+              label="Full Name"
+              name="fullName"
+              value={formData.fullName}
+              onChange={handleChange}
+              margin="normal"
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Person sx={{ color: "#BDAEFF" }} />
+                  </InputAdornment>
+                ),
+              }}
+            />
+
+            <StyledTextField
+              fullWidth
+              label="Email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              margin="normal"
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Email sx={{ color: "#BDAEFF" }} />
+                  </InputAdornment>
+                ),
+              }}
+            />
+
+            <StyledTextField
+              fullWidth
+              label="Password"
+              type="password"
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
+              margin="normal"
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Lock sx={{ color: "#BDAEFF" }} />
+                  </InputAdornment>
+                ),
+              }}
+            />
+
+            <StyledTextField
+              fullWidth
+              label="Confirm Password"
+              type="password"
+              name="confirmPassword"
+              value={formData.confirmPassword}
+              onChange={handleChange}
+              margin="normal"
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Lock sx={{ color: "#BDAEFF" }} />
+                  </InputAdornment>
+                ),
+              }}
+            />
 
             <Button
               type="submit"
               fullWidth
-              variant="contained"
               disabled={loading || success}
               sx={{
-                py: 1.5,
-                borderRadius: 3,
-                mt: 2,
-                background: 'linear-gradient(90deg,#CBA4F1,#E8B9D4,#F6C8B7)',
-                boxShadow: '0 0 20px rgba(203,164,241,0.35)',
+                mt: 3,
+                py: 1.6,
+                borderRadius: 14,
+                background: "linear-gradient(135deg,#7D5EF9,#9F6EFF)",
+                color: "#fff",
                 fontWeight: 700,
-                fontSize: '1.05rem',
-
-                '&:hover': {
-                  background: 'linear-gradient(90deg,#E8B9D4,#CBA4F1,#F6C8B7)',
-                  boxShadow: '0 0 25px rgba(203,164,241,0.45)',
+                "&:hover": {
+                  boxShadow: "0 12px 34px rgba(110,70,240,0.45)",
+                  transform: "translateY(-2px)",
                 },
               }}
             >
-              {loading ? <CircularProgress size={26} color="inherit" /> : 'Create Account'}
+              {loading ? (
+                <CircularProgress size={22} sx={{ color: "#fff" }} />
+              ) : (
+                "Create Account"
+              )}
             </Button>
 
-            <Typography align="center" sx={{ mt: 3, color: '#ccc' }}>
-              Already have an account?{' '}
-              <Link
-                to="/login"
+            <Typography
+              sx={{
+                mt: 2,
+                textAlign: "center",
+                color: "rgba(245,242,255,0.75)",
+              }}
+            >
+              Already have an account?{" "}
+              <span
+                onClick={() => navigate("/login")}
                 style={{
-                  color: '#E8B9D4',
-                  textDecoration: 'none',
-                  fontWeight: 600,
+                  color: "#CBB6FF",
+                  fontWeight: 700,
+                  cursor: "pointer",
                 }}
               >
                 Sign In
-              </Link>
+              </span>
             </Typography>
           </Box>
-        </Paper>
+        </GlassCard>
       </Container>
     </Box>
   );
-};
-
-export default Register;
+}
