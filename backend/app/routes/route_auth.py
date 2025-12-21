@@ -37,8 +37,8 @@ async def register(user: UserCreate):
 
     # Insert new user (execute_query returns lastrowid when not fetch/fetch_one)
     insert_query = """
-        INSERT INTO users (email, hashed_password, full_name, created_at)
-        VALUES (%s, %s, %s, NOW())
+        INSERT INTO users (email, hashed_password, full_name, usertype, created_at)
+        VALUES (%s, %s, %s, 'user',NOW())
     """
     try:
         user_id = execute_query(
@@ -48,7 +48,7 @@ async def register(user: UserCreate):
         
         # Retrieve created user (fetch_one for a single user)
         get_user_query = """
-            SELECT id, email, full_name, created_at 
+            SELECT id, email, full_name, usertype, created_at 
             FROM users 
             WHERE id = %s
         """
@@ -68,7 +68,7 @@ async def login(user_credentials: UserLogin):
     Login user and return JWT token
     """
     query = """
-        SELECT id, email, hashed_password, full_name 
+        SELECT id, email, hashed_password, full_name, usertype 
         FROM users 
         WHERE email = %s
     """
@@ -128,7 +128,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     
     # Get user from database
     query = """
-        SELECT id, email, full_name, created_at 
+        SELECT id, email, full_name, usertype, created_at 
         FROM users 
         WHERE id = %s
     """

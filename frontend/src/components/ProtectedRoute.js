@@ -3,9 +3,13 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { CircularProgress, Box } from '@mui/material';
 
-const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, loading } = useAuth();
+const ProtectedRoute = ({ children, adminOnly = false }) => {
+  const auth = useAuth();
 
+  if (!auth) {
+    return <Navigate to="/login" replace />;
+  }
+  const { user, loading } = auth;
   if (loading) {
     return (
       <Box
@@ -21,8 +25,13 @@ const ProtectedRoute = ({ children }) => {
     );
   }
 
-  if (!isAuthenticated) {
+    if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Check if route requires admin privileges
+  if (adminOnly && user.usertype !== 'admin') {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return children;

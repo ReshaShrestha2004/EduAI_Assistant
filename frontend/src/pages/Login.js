@@ -120,8 +120,15 @@ export default function Login() {
       const res = await login(formData.email, formData.password);
       setLoading(false);
 
-      if (res?.success) navigate("/dashboard");
-      else setError(res?.error || "Failed to login");
+      if (res?.success) {
+        if (res.data.usertype == 'admin'){
+          navigate("/admin");
+        } else {
+          navigate("/dashboard");
+        } 
+      } else {
+          setError(res?.error || "Failed to login");
+        }
     } catch (err) {
       setLoading(false);
       setError("An unexpected error occurred");
