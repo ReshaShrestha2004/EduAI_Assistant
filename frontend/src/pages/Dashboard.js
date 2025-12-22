@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import api from '../services/api';
 import {
   Box,
   Container,
@@ -141,6 +142,25 @@ export default function Dashboard() {
     quizzesTaken: 0,
     studyStreak: 0,
   });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchDocumentCount();
+  }, []);
+
+  const fetchDocumentCount = async () => {
+    try {
+      const response = await api.get('/documents/count');
+      setStats(prevStats => ({
+        ...prevStats,
+        documentsUploaded: response.data.count
+      }));
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching document count:', error);
+      setLoading(false);
+    }
+  };
 
   const handleLogout = () => {
     logout();
@@ -289,6 +309,7 @@ export default function Dashboard() {
             <QuickActionButton
               variant="contained"
               startIcon={<Upload />}
+              onClick={() => navigate('/upload')}
               sx={{
                 background: 'linear-gradient(135deg, #667EEA, #764BA2)',
                 color: '#fff',
@@ -302,6 +323,7 @@ export default function Dashboard() {
             <QuickActionButton
               variant="outlined"
               startIcon={<Description />}
+              onClick={() => navigate('/my-documents')}
               sx={{
                 borderColor: '#667EEA',
                 color: '#667EEA',

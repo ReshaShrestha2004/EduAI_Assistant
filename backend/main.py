@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
 from app.routes.route_auth import router as auth_router
+from app.routes import route_documents  
 from app.routes.route_admin import router as admin_router
 from database import init_pool
 
@@ -31,6 +32,7 @@ app.add_middleware(
 # Include routers
 app.include_router(auth_router)
 app.include_router(admin_router)
+app.include_router(route_documents.router) 
 
 @app.get("/")
 async def root():

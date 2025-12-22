@@ -9,6 +9,9 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import AdminDashboard from './pages/AdminDashboard';
+import UploadDocument from './pages/UploadDocuments';
+import Summaries from './pages/Summaries';
+import MyDocuments from './pages/MyDocuments';
 import ProtectedRoute from './components/ProtectedRoute';
 
 const theme = createTheme({
@@ -40,6 +43,30 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+             <Route
+              path="/upload"
+              element={
+                <ProtectedRoute>
+                  <UploadDocument />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/summaries"
+              element={
+                <ProtectedRoute>
+                  <Summaries />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/my-documents"
+              element={
+                <ProtectedRoute>
+                  <MyDocuments />
                 </ProtectedRoute>
               }
             />
