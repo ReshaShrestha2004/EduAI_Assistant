@@ -13,7 +13,8 @@ import {
   IconButton,
   Button,
   Paper,
-  LinearProgress,
+  Chip,
+  CircularProgress,
 } from '@mui/material';
 import {
   AutoStories,
@@ -25,6 +26,11 @@ import {
   TrendingUp,
   Description,
   ArrowForward,
+  LocalFireDepartment,
+  CloudUpload,
+  AutoAwesome,
+  QuestionAnswer,
+  DeleteOutline,
 } from '@mui/icons-material';
 import { styled, keyframes } from '@mui/material/styles';
 import logo from '../assets/logo.png';
@@ -133,31 +139,70 @@ const QuickActionButton = styled(Button)({
   },
 });
 
+// Activity icon and color mapping
+const ACTIVITY_CONFIG = {
+  upload: { icon: <CloudUpload sx={{ fontSize: 20 }} />, color: '#8A54FF', bg: 'rgba(138, 84, 255, 0.15)' },
+  summary: { icon: <AutoAwesome sx={{ fontSize: 20 }} />, color: '#667EEA', bg: 'rgba(102, 126, 234, 0.15)' },
+  flashcard: { icon: <School sx={{ fontSize: 20 }} />, color: '#F5576C', bg: 'rgba(245, 87, 108, 0.15)' },
+  quiz: { icon: <Quiz sx={{ fontSize: 20 }} />, color: '#FFD93D', bg: 'rgba(255, 217, 61, 0.15)' },
+  qa: { icon: <QuestionAnswer sx={{ fontSize: 20 }} />, color: '#4FACFE', bg: 'rgba(79, 172, 254, 0.15)' },
+  delete: { icon: <DeleteOutline sx={{ fontSize: 20 }} />, color: '#EF4444', bg: 'rgba(239, 68, 68, 0.15)' },
+};
+
+const getTimeAgo = (dateString) => {
+  const now = new Date();
+  const date = new Date(dateString);
+  const diffMs = now - date;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+
 export default function Dashboard() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [stats, setStats] = useState({
-    documentsUploaded: 0,
-    flashcardsCreated: 0,
-    quizzesTaken: 0,
-    studyStreak: 0,
+    documents_uploaded: 0,
+    flashcards_created: 0,
+    quizzes_taken: 0,
+    study_streak: 0,
   });
+  const [recentActivity, setRecentActivity] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchDocumentCount();
+    fetchDashboardData();
   }, []);
 
-  const fetchDocumentCount = async () => {
+  const fetchDashboardData = async () => {
     try {
-      const response = await api.get('/documents/count');
-      setStats(prevStats => ({
-        ...prevStats,
-        documentsUploaded: response.data.count
-      }));
+      const response = await api.get('/activity/dashboard');
+      const data = response.data;
+
+      setStats({
+        documents_uploaded: data.stats.documents_uploaded,
+        flashcards_created: data.stats.flashcards_created,
+        quizzes_taken: data.stats.quizzes_taken,
+        study_streak: data.stats.study_streak,
+      });
+
+      setRecentActivity(data.recent_activity);
       setLoading(false);
     } catch (error) {
-      console.error('Error fetching document count:', error);
+      console.error('Error fetching dashboard data:', error);
+      // Fallback: try individual endpoints
+      try {
+        const docRes = await api.get('/documents/count');
+        setStats((prev) => ({ ...prev, documents_uploaded: docRes.data.count }));
+      } catch (e) {
+        console.error('Fallback also failed:', e);
+      }
       setLoading(false);
     }
   };
@@ -208,10 +253,6 @@ export default function Dashboard() {
       iconBg: 'rgba(255, 255, 255, 0.25)',
       route: '/qa-assistant',
     },
-  ];
-
-  const recentActivity = [
-    { title: 'Welcome to EduAI!', time: 'Just now', type: 'info' },
   ];
 
   return (
@@ -339,126 +380,133 @@ export default function Dashboard() {
         </Box>
 
         {/* Stats Overview */}
-        <Grid container spacing={3} sx={{ mb: 6 }}>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatsCard sx={{ animation: `${fadeIn} 0.6s ease-out 0.2s backwards` }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Box
-                  sx={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: '12px',
-                    background: 'rgba(102, 126, 234, 0.1)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Description sx={{ color: '#667EEA', fontSize: 24 }} />
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <CircularProgress sx={{ color: '#8A54FF' }} />
+          </Box>
+        ) : (
+          <Grid container spacing={3} sx={{ mb: 6 }}>
+            <Grid item xs={12} sm={6} md={3}>
+              <StatsCard sx={{ animation: `${fadeIn} 0.6s ease-out 0.2s backwards` }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Box
+                    sx={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: '12px',
+                      background: 'rgba(102, 126, 234, 0.1)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Description sx={{ color: '#667EEA', fontSize: 24 }} />
+                  </Box>
+                  <Box>
+                    <Typography variant="h4" sx={{ fontWeight: 800, color: '#FFFFFF' }}>
+                      {stats.documents_uploaded}
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.6)' }}>
+                      Documents
+                    </Typography>
+                  </Box>
                 </Box>
-                <Box>
-                  <Typography variant="h4" sx={{ fontWeight: 800, color: '#FFFFFF' }}>
-                    {stats.documentsUploaded}
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.6)' }}>
-                    Documents
-                  </Typography>
-                </Box>
-              </Box>
-            </StatsCard>
-          </Grid>
+              </StatsCard>
+            </Grid>
 
-          <Grid item xs={12} sm={6} md={3}>
-            <StatsCard sx={{ animation: `${fadeIn} 0.6s ease-out 0.3s backwards` }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Box
-                  sx={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: '12px',
-                    background: 'rgba(245, 87, 108, 0.1)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <School sx={{ color: '#F5576C', fontSize: 24 }} />
+            <Grid item xs={12} sm={6} md={3}>
+              <StatsCard sx={{ animation: `${fadeIn} 0.6s ease-out 0.3s backwards` }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Box
+                    sx={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: '12px',
+                      background: 'rgba(245, 87, 108, 0.1)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <School sx={{ color: '#F5576C', fontSize: 24 }} />
+                  </Box>
+                  <Box>
+                    <Typography variant="h4" sx={{ fontWeight: 800, color: '#FFFFFF' }}>
+                      {stats.flashcards_created}
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.6)' }}>
+                      Flashcards
+                    </Typography>
+                  </Box>
                 </Box>
-                <Box>
-                  <Typography variant="h4" sx={{ fontWeight: 800, color: '#FFFFFF' }}>
-                    {stats.flashcardsCreated}
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.6)' }}>
-                    Flashcards
-                  </Typography>
-                </Box>
-              </Box>
-            </StatsCard>
-          </Grid>
+              </StatsCard>
+            </Grid>
 
-          <Grid item xs={12} sm={6} md={3}>
-            <StatsCard sx={{ animation: `${fadeIn} 0.6s ease-out 0.4s backwards` }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Box
-                  sx={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: '12px',
-                    background: 'rgba(255, 217, 61, 0.1)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Quiz sx={{ color: '#FFD93D', fontSize: 24 }} />
+            <Grid item xs={12} sm={6} md={3}>
+              <StatsCard sx={{ animation: `${fadeIn} 0.6s ease-out 0.4s backwards` }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Box
+                    sx={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: '12px',
+                      background: 'rgba(255, 217, 61, 0.1)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Quiz sx={{ color: '#FFD93D', fontSize: 24 }} />
+                  </Box>
+                  <Box>
+                    <Typography variant="h4" sx={{ fontWeight: 800, color: '#FFFFFF' }}>
+                      {stats.quizzes_taken}
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.6)' }}>
+                      Quizzes Taken
+                    </Typography>
+                  </Box>
                 </Box>
-                <Box>
-                  <Typography variant="h4" sx={{ fontWeight: 800, color: '#FFFFFF' }}>
-                    {stats.quizzesTaken}
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.6)' }}>
-                    Quizzes Taken
-                  </Typography>
-                </Box>
-              </Box>
-            </StatsCard>
-          </Grid>
+              </StatsCard>
+            </Grid>
 
-          <Grid item xs={12} sm={6} md={3}>
-            <StatsCard sx={{ animation: `${fadeIn} 0.6s ease-out 0.5s backwards` }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Box
-                  sx={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: '12px',
-                    background: 'rgba(79, 172, 254, 0.1)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <TrendingUp sx={{ color: '#4FACFE', fontSize: 24 }} />
+            <Grid item xs={12} sm={6} md={3}>
+              <StatsCard sx={{ animation: `${fadeIn} 0.6s ease-out 0.5s backwards` }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Box
+                    sx={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: '12px',
+                      background: stats.study_streak > 0 ? 'rgba(255, 152, 0, 0.15)' : 'rgba(79, 172, 254, 0.1)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {stats.study_streak > 0 ? (
+                      <LocalFireDepartment sx={{ color: '#FF9800', fontSize: 24 }} />
+                    ) : (
+                      <TrendingUp sx={{ color: '#4FACFE', fontSize: 24 }} />
+                    )}
+                  </Box>
+                  <Box>
+                    <Typography variant="h4" sx={{ fontWeight: 800, color: '#FFFFFF' }}>
+                      {stats.study_streak}
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.6)' }}>
+                      Day Streak {stats.study_streak > 0 ? '🔥' : ''}
+                    </Typography>
+                  </Box>
                 </Box>
-                <Box>
-                  <Typography variant="h4" sx={{ fontWeight: 800, color: '#FFFFFF' }}>
-                    {stats.studyStreak}
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.6)' }}>
-                    Day Streak
-                  </Typography>
-                </Box>
-              </Box>
-            </StatsCard>
+              </StatsCard>
+            </Grid>
           </Grid>
-        </Grid>
+        )}
 
-        {/* Feature Cards - Quizlet Style */}
+        {/* Feature Cards */}
         <Box sx={{ mb: 4 }}>
-          <Typography
-            variant="h4"
-            sx={{ fontWeight: 800, color: '#FFFFFF', mb: 3 }}
-          >
+          <Typography variant="h4" sx={{ fontWeight: 800, color: '#FFFFFF', mb: 3 }}>
             Study Tools
           </Typography>
         </Box>
@@ -474,10 +522,17 @@ export default function Dashboard() {
                   animation: `${fadeIn} 0.6s ease-out ${0.6 + index * 0.1}s backwards`,
                 }}
               >
-                <CardContent sx={{ p: 0, height: '100%', display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 1 }}>
-                  <IconWrapper iconbg={feature.iconBg}>
-                    {feature.icon}
-                  </IconWrapper>
+                <CardContent
+                  sx={{
+                    p: 0,
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    position: 'relative',
+                    zIndex: 1,
+                  }}
+                >
+                  <IconWrapper iconbg={feature.iconBg}>{feature.icon}</IconWrapper>
                   <Typography
                     variant="h5"
                     sx={{
@@ -508,9 +563,7 @@ export default function Dashboard() {
                       color: '#FFFFFF',
                     }}
                   >
-                    <Typography sx={{ fontWeight: 600, fontSize: '15px' }}>
-                      Get Started
-                    </Typography>
+                    <Typography sx={{ fontWeight: 600, fontSize: '15px' }}>Get Started</Typography>
                     <ArrowForward sx={{ fontSize: 20 }} />
                   </Box>
                 </CardContent>
@@ -521,43 +574,105 @@ export default function Dashboard() {
 
         {/* Recent Activity */}
         <Box sx={{ animation: `${fadeIn} 0.6s ease-out 1s backwards` }}>
-          <Typography
-            variant="h5"
-            sx={{ fontWeight: 800, color: '#FFFFFF', mb: 3 }}
-          >
+          <Typography variant="h5" sx={{ fontWeight: 800, color: '#FFFFFF', mb: 3 }}>
             Recent Activity
           </Typography>
           <StatsCard>
-            {recentActivity.map((activity, index) => (
-              <Box
-                key={index}
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  py: 2,
-                  borderBottom: index < recentActivity.length - 1 ? '1px solid rgba(255, 255, 255, 0.1)' : 'none',
-                }}
-              >
-                <Box>
-                  <Typography sx={{ fontWeight: 600, color: '#FFFFFF' }}>
-                    {activity.title}
-                  </Typography>
-                  <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.6)' }}>
-                    {activity.time}
-                  </Typography>
-                </Box>
+            {loading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                <CircularProgress sx={{ color: '#8A54FF' }} size={32} />
               </Box>
-            ))}
-            {recentActivity.length === 1 && (
-              <Box sx={{ textAlign: 'center', py: 3 }}>
+            ) : recentActivity.length > 0 ? (
+              recentActivity.map((activity, index) => {
+                const config = ACTIVITY_CONFIG[activity.activity_type] || ACTIVITY_CONFIG.upload;
+                return (
+                  <Box
+                    key={activity.id}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 2,
+                      py: 2,
+                      borderBottom:
+                        index < recentActivity.length - 1
+                          ? '1px solid rgba(255, 255, 255, 0.06)'
+                          : 'none',
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: '10px',
+                        background: config.bg,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: config.color,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {config.icon}
+                    </Box>
+                    <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                      <Typography
+                        sx={{
+                          fontWeight: 600,
+                          color: '#FFFFFF',
+                          fontSize: '14px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {activity.title}
+                      </Typography>
+                      {activity.description && (
+                        <Typography
+                          variant="caption"
+                          sx={{ color: 'rgba(255, 255, 255, 0.4)' }}
+                        >
+                          {activity.description}
+                        </Typography>
+                      )}
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
+                      <Chip
+                        label={activity.activity_type}
+                        size="small"
+                        sx={{
+                          background: config.bg,
+                          color: config.color,
+                          fontWeight: 600,
+                          fontSize: '11px',
+                          height: '24px',
+                          display: { xs: 'none', sm: 'flex' },
+                        }}
+                      />
+                      <Typography
+                        variant="caption"
+                        sx={{ color: 'rgba(255, 255, 255, 0.4)', whiteSpace: 'nowrap' }}
+                      >
+                        {getTimeAgo(activity.created_at)}
+                      </Typography>
+                    </Box>
+                  </Box>
+                );
+              })
+            ) : (
+              // Empty state - no activity yet
+              <Box sx={{ textAlign: 'center', py: 4 }}>
+                <Description
+                  sx={{ fontSize: 48, color: 'rgba(138, 84, 255, 0.3)', mb: 2 }}
+                />
                 <Typography sx={{ color: 'rgba(255, 255, 255, 0.6)', mb: 2 }}>
-                  Start using EduAI to see your activity here
+                  No activity yet. Start by uploading a document!
                 </Typography>
                 <QuickActionButton
                   variant="contained"
                   size="small"
                   startIcon={<Upload />}
+                  onClick={() => navigate('/upload')}
                   sx={{
                     background: 'linear-gradient(135deg, #667EEA, #764BA2)',
                     color: '#fff',

@@ -79,21 +79,17 @@ async def get_admin_stats(current_admin: dict = Depends(verify_admin)) -> Dict[s
         total_users_result = execute_query(total_users_query, fetch_one=True)
         total_users = total_users_result['count'] if total_users_result else 0
         
-        # Get total documents count (you can modify this when you have documents table)
-        # For now, returning 0 as placeholder
+        # 0 as placeholder for now
         total_documents = 0
         
-        # Try to get document count if table exists
         try:
             total_docs_query = "SELECT COUNT(*) as count FROM documents"
             total_docs_result = execute_query(total_docs_query, fetch_one=True)
             total_documents = total_docs_result['count'] if total_docs_result else 0
         except mysql.connector.Error:
-            # Documents table doesn't exist yet, that's fine
             total_documents = 0
         
-        # Get active users (users created in last 30 days as a metric)
-        # You can modify this to track last_login when you implement that feature
+
         active_users_query = """
             SELECT COUNT(*) as count 
             FROM users 
@@ -219,7 +215,6 @@ async def delete_user(
     Note: Cannot delete admin users
     """
     try:
-        # First check if user exists and is not an admin
         check_query = """
             SELECT id, usertype 
             FROM users 

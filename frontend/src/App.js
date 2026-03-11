@@ -12,6 +12,9 @@ import AdminDashboard from './pages/AdminDashboard';
 import UploadDocument from './pages/UploadDocuments';
 import Summaries from './pages/Summaries';
 import MyDocuments from './pages/MyDocuments';
+import Flashcards from './pages/Flashcards';
+import QAAssistant from './pages/QAAssistant';
+import Quizzes from './pages/Quizzes';
 import ProtectedRoute from './components/ProtectedRoute';
 
 const theme = createTheme({
@@ -67,6 +70,30 @@ function App() {
               element={
                 <ProtectedRoute>
                   <MyDocuments />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/flashcards"
+              element={
+                <ProtectedRoute>
+                  <Flashcards />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/qa-assistant"
+              element={
+                <ProtectedRoute>
+                  <QAAssistant />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/quizzes"
+              element={
+                <ProtectedRoute>
+                  <Quizzes />
                 </ProtectedRoute>
               }
             />

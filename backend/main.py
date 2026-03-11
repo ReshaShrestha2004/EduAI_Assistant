@@ -3,8 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
 from app.routes.route_auth import router as auth_router
-from app.routes import route_documents  
+from app.routes import route_documents
 from app.routes.route_admin import router as admin_router
+from app.routes.route_activity import router as activity_router
+from app.routes.route_ai import router as ai_router
 from database import init_pool
 
 
@@ -32,7 +34,9 @@ app.add_middleware(
 # Include routers
 app.include_router(auth_router)
 app.include_router(admin_router)
-app.include_router(route_documents.router) 
+app.include_router(route_documents.router)
+app.include_router(activity_router)
+app.include_router(ai_router)
 
 @app.get("/")
 async def root():
@@ -51,5 +55,3 @@ async def health_check():
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
-
-

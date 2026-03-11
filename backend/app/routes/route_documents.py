@@ -38,6 +38,57 @@ async def get_current_user_id(credentials: HTTPAuthorizationCredentials = Depend
     return user_id
 
 
+def log_activity(user_id: int, activity_type: str, title: str, description: str = None, document_id: int = None):
+    """Helper to log activity and update streak from within routes"""
+    from datetime import date, timedelta
+
+    try:
+        # Insert activity log
+        insert_query = """
+            INSERT INTO activity_logs (user_id, activity_type, document_id, title, description)
+            VALUES (%s, %s, %s, %s, %s)
+        """
+        execute_query(insert_query, (user_id, activity_type, document_id, title, description))
+
+        # Update streak
+        today = date.today()
+        streak_query = "SELECT current_streak, longest_streak, last_activity_date FROM user_streaks WHERE user_id = %s"
+        streak = execute_query(streak_query, (user_id,), fetch_one=True)
+
+        if not streak:
+            execute_query(
+                "INSERT INTO user_streaks (user_id, current_streak, longest_streak, last_activity_date) VALUES (%s, 1, 1, %s)",
+                (user_id, today)
+            )
+        else:
+            last_date = streak['last_activity_date']
+            current = streak['current_streak']
+            longest = streak['longest_streak']
+
+            if last_date != today:
+                if last_date == today - timedelta(days=1):
+                    current += 1
+                else:
+                    current = 1
+
+                if current > longest:
+                    longest = current
+
+                execute_query(
+                    "UPDATE user_streaks SET current_streak = %s, longest_streak = %s, last_activity_date = %s WHERE user_id = %s",
+                    (current, longest, today, user_id)
+                )
+
+        # Ensure user_stats exists
+        check = execute_query("SELECT id FROM user_stats WHERE user_id = %s", (user_id,), fetch_one=True)
+        if not check:
+            execute_query("INSERT INTO user_stats (user_id) VALUES (%s)", (user_id,))
+
+    except Exception as e:
+        # Don't fail the main request if activity logging fails
+        print(f"Activity logging error: {e}")
+
+
 @router.post("/upload", response_model=DocumentUpload)
 async def upload_document(
     file: UploadFile = File(...),
@@ -84,6 +135,15 @@ async def upload_document(
             WHERE id = %s
         """
         document = execute_query(get_doc_query, (document_id,), fetch_one=True)
+
+        # Log the upload activity
+        log_activity(
+            user_id=user_id,
+            activity_type='upload',
+            title=f'Uploaded "{file.filename}"',
+            description=f'PDF document ({file_size / 1024:.1f} KB)',
+            document_id=document_id
+        )
         
         return DocumentUpload(**document)
     
@@ -163,7 +223,7 @@ async def delete_document(
     """
     # Get document to get file path
     get_query = """
-        SELECT file_path
+        SELECT file_path, original_filename
         FROM documents
         WHERE id = %s AND user_id = %s
     """
@@ -175,13 +235,21 @@ async def delete_document(
             detail="Document not found"
         )
     
-    # Delete from database
+    original_filename = document['original_filename']
+
     delete_query = "DELETE FROM documents WHERE id = %s AND user_id = %s"
     execute_query(delete_query, (document_id, user_id))
     
-    # Delete physical file
     file_path = Path(document['file_path'])
     if file_path.exists():
         os.remove(file_path)
+
+    log_activity(
+        user_id=user_id,
+        activity_type='delete',
+        title=f'Deleted "{original_filename}"',
+        description='Document removed from library',
+        document_id=None  
+    )
     
     return {"message": "Document deleted successfully"}
