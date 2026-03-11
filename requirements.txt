@@ -1,0 +1,50 @@
+
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+
+# Database
+mysql-connector-python==8.2.0
+
+# Authentication
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+
+# Environment
+python-dotenv==1.0.0
+
+# Validation
+pydantic[email]>=2.0.0
+email-validator>=2.0.0
+
+
+torch==2.1.0
+
+# Transformers & Tokenizers
+transformers==4.35.0
+sentencepiece>=0.1.99
+
+# Sentence Embeddings (for RAG)
+sentence-transformers==2.2.2
+
+# Vector Search
+faiss-cpu==1.7.4
+
+# NLP
+spacy==3.7.2
+langchain==0.0.335
+
+# PDF Processing
+pdfplumber>=0.10.0
+pypdf==3.17.0
+
+# Groq API (cloud AI fallback)
+groq>=0.4.0
+
+# Text Processing
+nltk>=3.8.0
+
+
+pytest==7.4.3
+pytest-asyncio==0.21.1
+

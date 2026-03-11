@@ -19,6 +19,8 @@ import {
   FormControl,
   InputLabel,
   CircularProgress,
+  ToggleButton,
+  ToggleButtonGroup,
 } from '@mui/material';
 import {
   ArrowBack,
@@ -29,6 +31,8 @@ import {
   Download,
   CheckCircle,
   FolderOpen,
+  SmartToy,
+  Computer,
 } from '@mui/icons-material';
 import { styled, keyframes } from '@mui/material/styles';
 
@@ -101,10 +105,13 @@ export default function Summaries() {
   const [selectedDocumentId, setSelectedDocumentId] = useState('');
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [summary, setSummary] = useState('');
+  const [modelUsed, setModelUsed] = useState('');
+  const [chunksProcessed, setChunksProcessed] = useState(0);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [aiMode, setAiMode] = useState('local'); // "local" or "groq"
 
   useEffect(() => {
     fetchDocuments();
@@ -137,26 +144,29 @@ export default function Summaries() {
   const handleDocumentSelect = (event) => {
     setSelectedDocumentId(event.target.value);
     setSummary('');
+    setModelUsed('');
   };
 
   const handleGenerateSummary = async () => {
     if (!selectedDocument) return;
-    
+
     setGenerating(true);
     setError('');
-    
+    setSummary('');
+
     try {
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      setSummary(
-        `This is an AI-generated summary of your document "${selectedDocument.original_filename}". ` +
-        "The document has been successfully processed and analyzed. " +
-        "Key points and main ideas have been extracted to provide you with a comprehensive overview."
-      );
+      const response = await api.post(`/ai/documents/${selectedDocumentId}/summarize`, {
+        prefer: aiMode,
+      });
+
+      setSummary(response.data.summary);
+      setModelUsed(response.data.model_used);
+      setChunksProcessed(response.data.chunks_processed || 0);
       setSuccess('Summary generated successfully!');
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
-      setError('Failed to generate summary');
+      const detail = err.response?.data?.detail || 'Failed to generate summary';
+      setError(detail);
     } finally {
       setGenerating(false);
     }
@@ -273,6 +283,32 @@ export default function Summaries() {
                 </Box>
               )}
 
+              {/* AI Mode Toggle */}
+              {selectedDocument && (
+                <Box sx={{ mb: 3 }}>
+                  <Typography sx={{ color: 'rgba(255,255,255,0.6)', mb: 1, fontSize: '14px' }}>AI Engine</Typography>
+                  <ToggleButtonGroup
+                    value={aiMode}
+                    exclusive
+                    onChange={(e, val) => { if (val) setAiMode(val); }}
+                    size="small"
+                  >
+                    <ToggleButton value="local" sx={{
+                      color: 'rgba(255,255,255,0.6)', borderColor: 'rgba(255,255,255,0.15)',
+                      '&.Mui-selected': { background: 'rgba(138,84,255,0.2)', color: '#B88CFF', borderColor: '#8A54FF' },
+                    }}>
+                      <Computer sx={{ mr: 1, fontSize: 18 }} /> Local (FLAN-T5)
+                    </ToggleButton>
+                    <ToggleButton value="groq" sx={{
+                      color: 'rgba(255,255,255,0.6)', borderColor: 'rgba(255,255,255,0.15)',
+                      '&.Mui-selected': { background: 'rgba(79,172,254,0.2)', color: '#4FACFE', borderColor: '#4FACFE' },
+                    }}>
+                      <SmartToy sx={{ mr: 1, fontSize: 18 }} /> Cloud (Groq)
+                    </ToggleButton>
+                  </ToggleButtonGroup>
+                </Box>
+              )}
+
               <Box sx={{ display: 'flex', gap: 2 }}>
                 <ActionButton
                   fullWidth
@@ -303,9 +339,14 @@ export default function Summaries() {
                 <Box sx={{ mt: 3 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
                     <AutoAwesome sx={{ color: '#8A54FF', animation: `${pulse} 2s infinite` }} />
-                    <Typography sx={{ color: '#FFFFFF', fontWeight: 600 }}>Generating AI Summary...</Typography>
+                    <Typography sx={{ color: '#FFFFFF', fontWeight: 600 }}>
+                      {aiMode === 'groq' ? 'Cloud AI is generating your summary...' : 'Local AI is processing your document...'}
+                    </Typography>
                   </Box>
                   <LinearProgress sx={{ background: 'rgba(138, 84, 255, 0.2)' }} />
+                  <Typography sx={{ color: 'rgba(255,255,255,0.4)', mt: 1, fontSize: '13px' }}>
+                    {aiMode === 'local' ? 'First run may take longer as the model loads (~1-2 min)' : 'This usually takes a few seconds'}
+                  </Typography>
                 </Box>
               )}
             </DocumentSelectorCard>
@@ -314,13 +355,34 @@ export default function Summaries() {
 
         {summary && !generating && (
           <ResultCard sx={{ animation: `${fadeIn} 0.6s ease-out 0.2s backwards`, mt: 3 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-              <AutoAwesome sx={{ color: '#8A54FF', fontSize: 28 }} />
-              <Typography variant="h5" sx={{ color: '#FFFFFF', fontWeight: 800 }}>Generated Summary</Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3, flexWrap: 'wrap', gap: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <AutoAwesome sx={{ color: '#8A54FF', fontSize: 28 }} />
+                <Typography variant="h5" sx={{ color: '#FFFFFF', fontWeight: 800 }}>Generated Summary</Typography>
+              </Box>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Chip
+                  icon={modelUsed?.includes('groq') ? <SmartToy sx={{ fontSize: 16 }} /> : <Computer sx={{ fontSize: 16 }} />}
+                  label={modelUsed?.includes('groq') ? 'Groq AI' : 'FLAN-T5 Local'}
+                  size="small"
+                  sx={{
+                    background: modelUsed?.includes('groq') ? 'rgba(79,172,254,0.15)' : 'rgba(138,84,255,0.15)',
+                    color: modelUsed?.includes('groq') ? '#4FACFE' : '#B88CFF',
+                    fontWeight: 600,
+                  }}
+                />
+                {chunksProcessed > 1 && (
+                  <Chip
+                    label={`${chunksProcessed} chunks processed`}
+                    size="small"
+                    sx={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)' }}
+                  />
+                )}
+              </Box>
             </Box>
             <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.1)', mb: 3 }} />
             <Paper sx={{ p: 3, background: 'rgba(0, 0, 0, 0.2)', borderRadius: '16px', mb: 3 }}>
-              <Typography sx={{ color: 'rgba(255, 255, 255, 0.9)', lineHeight: 1.8 }}>{summary}</Typography>
+              <Typography sx={{ color: 'rgba(255, 255, 255, 0.9)', lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>{summary}</Typography>
             </Paper>
             <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
               <ActionButton

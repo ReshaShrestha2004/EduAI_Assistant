@@ -46,12 +46,10 @@ const AdminDashboard = () => {
 
   const fetchAdminStats = async () => {
     try {
-      // You'll need to create these endpoints in your backend
       const response = await api.get('/admin/stats');
       setStats(response.data);
     } catch (error) {
       console.error('Error fetching admin stats:', error);
-      // Set mock data for now
       setStats({
         totalUsers: 0,
         totalDocuments: 0,
@@ -62,7 +60,6 @@ const AdminDashboard = () => {
 
   const fetchRecentUsers = async () => {
     try {
-      // You'll need to create this endpoint in your backend
       const response = await api.get('/admin/users/recent');
       setRecentUsers(response.data);
     } catch (error) {

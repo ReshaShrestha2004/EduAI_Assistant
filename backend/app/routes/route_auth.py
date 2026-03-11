@@ -22,7 +22,6 @@ async def register(user: UserCreate):
     """
     Register a new user
     """
-    # Check if user already exists (use fetch_one for single row)
     check_query = "SELECT id FROM users WHERE email = %s"
     existing_user = execute_query(check_query, (user.email,), fetch_one=True)
     
@@ -32,10 +31,8 @@ async def register(user: UserCreate):
             detail="Email already registered"
         )
     
-    # Hash password
     hashed_password = get_password_hash(user.password)
 
-    # Insert new user (execute_query returns lastrowid when not fetch/fetch_one)
     insert_query = """
         INSERT INTO users (email, hashed_password, full_name, usertype, created_at)
         VALUES (%s, %s, %s, 'user',NOW())
@@ -46,7 +43,6 @@ async def register(user: UserCreate):
             (user.email, hashed_password, user.full_name)
         )
         
-        # Retrieve created user (fetch_one for a single user)
         get_user_query = """
             SELECT id, email, full_name, usertype, created_at 
             FROM users 
