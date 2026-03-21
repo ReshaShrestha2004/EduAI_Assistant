@@ -1,6 +1,6 @@
 import gc
 import os
-import torch
+from pathlib import Path
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -12,19 +12,24 @@ class ModelManager:
     _instance = None
 
     def __init__(self):
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self._flan_t5_model = None
-        self._flan_t5_tokenizer = None
+        self._llm = None
         self._embed_model = None
         self._spacy_nlp = None
         self._groq_client = None
 
-        # Config
+        # Mistral GGUF model path
+        self.local_model_path = os.getenv(
+            "LOCAL_MODEL_PATH",
+            "./ai_models/mistral-7b-instruct-v0.2.Q4_K_M.gguf"
+        )
+
+        # Groq config
         self.groq_api_key = os.getenv("GROQ_API_KEY", "")
         self.groq_model = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
         self.use_groq_fallback = bool(self.groq_api_key)
 
-        print(f"[ModelManager] Device: {self.device}")
+        print(f"[ModelManager] Local model: {self.local_model_path}")
+        print(f"[ModelManager] Local model exists: {Path(self.local_model_path).exists()}")
         print(f"[ModelManager] Groq fallback: {'enabled' if self.use_groq_fallback else 'disabled'}")
 
     @classmethod
@@ -33,49 +38,57 @@ class ModelManager:
             cls._instance = cls()
         return cls._instance
 
-    
+    # ── Local Mistral 7B (GGUF via llama-cpp-python) ──────────
 
-    def get_flan_t5(self):
-        """Load FLAN-T5-base on demand"""
-        if self._flan_t5_model is None:
-            print("[ModelManager] Loading FLAN-T5-base...")
-            from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+    def get_llm(self):
+        """Load Mistral GGUF model on demand"""
+        if self._llm is None:
+            print("[ModelManager] Loading Mistral 7B GGUF model...")
 
-            model_path = os.getenv("FLAN_T5_MODEL_PATH", "google/flan-t5-base")
+            from llama_cpp import Llama
 
-            self._flan_t5_tokenizer = AutoTokenizer.from_pretrained(model_path)
-            self._flan_t5_model = AutoModelForSeq2SeqLM.from_pretrained(model_path)
-            self._flan_t5_model.to(self.device)
-            self._flan_t5_model.eval()
-            print("[ModelManager] FLAN-T5-base loaded!")
+            model_path = self.local_model_path
 
-        return self._flan_t5_model, self._flan_t5_tokenizer
+            if not Path(model_path).exists():
+                raise FileNotFoundError(
+                    f"Model file not found: {model_path}\n"
+                    f"Download it with:\n"
+                    f"huggingface-cli download TheBloke/Mistral-7B-Instruct-v0.2-GGUF "
+                    f"mistral-7b-instruct-v0.2.Q4_K_M.gguf --local-dir ./ai_models"
+                )
 
-    def generate_flan_t5(self, prompt, max_length=256, min_length=30, num_beams=4):
-        """Generate text using FLAN-T5"""
-        model, tokenizer = self.get_flan_t5()
-
-        inputs = tokenizer(
-            prompt,
-            max_length=512,
-            truncation=True,
-            return_tensors="pt"
-        ).to(self.device)
-
-        with torch.no_grad():
-            outputs = model.generate(
-                **inputs,
-                max_length=max_length,
-                min_length=min_length,
-                num_beams=num_beams,
-                no_repeat_ngram_size=3,
-                length_penalty=1.0,
-                early_stopping=True
+            self._llm = Llama(
+                model_path=model_path,
+                n_ctx=4096,         # Context window
+                n_gpu_layers=-1,    # Use ALL GPU layers (Metal on Mac, CUDA on Windows)
+                n_threads=6,        # CPU threads for non-GPU work
+                verbose=False,
             )
 
-        return tokenizer.decode(outputs[0], skip_special_tokens=True)
+            print("[ModelManager] Mistral 7B loaded!")
 
-    
+        return self._llm
+
+    def generate_local(self, prompt: str, system_prompt: str = "You are an educational AI assistant.",
+                       max_tokens: int = 800, temperature: float = 0.3) -> str:
+        """Generate text using local Mistral model"""
+        llm = self.get_llm()
+
+        # Mistral instruct format
+        formatted_prompt = f"<s>[INST] {system_prompt}\n\n{prompt} [/INST]"
+
+        response = llm(
+            formatted_prompt,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            top_p=0.9,
+            repeat_penalty=1.1,
+            stop=["</s>", "[INST]"],
+        )
+
+        return response["choices"][0]["text"].strip()
+
+    # ── Groq API (Cloud Enhancement) ──────────────────────────
 
     def get_groq_client(self):
         """Initialize Groq client on demand"""
@@ -85,7 +98,8 @@ class ModelManager:
             print("[ModelManager] Groq client initialized!")
         return self._groq_client
 
-    def generate_groq(self, prompt, system_prompt="You are an educational AI assistant.", max_tokens=1024):
+    def generate_groq(self, prompt: str, system_prompt: str = "You are an educational AI assistant.",
+                      max_tokens: int = 1024) -> str:
         """Generate text using Groq API"""
         client = self.get_groq_client()
         if not client:
@@ -103,45 +117,56 @@ class ModelManager:
 
         return response.choices[0].message.content
 
-    
+    # ── Hybrid Generate ───────────────────────────────────────
 
-    def generate(self, prompt, system_prompt="You are an educational AI assistant.",
-                 max_length=256, min_length=30, prefer="local"):
+    def generate(self, prompt: str, system_prompt: str = "You are an educational AI assistant.",
+                 max_tokens: int = 800, prefer: str = "local") -> str:
         """
-        Hybrid generation: tries local FLAN-T5 first, falls back to Groq.
-        prefer="local" → try FLAN-T5 first
-        prefer="groq" → try Groq first
-        prefer="groq_only" → only use Groq
-        prefer="local_only" → only use FLAN-T5
+        Hybrid generation:
+        prefer="local" → Mistral 7B
+        prefer="groq" → Groq API
+        prefer="groq_only" → Only Groq
+        prefer="local_only" → Only Mistral
         """
         if prefer == "groq_only":
-            return self.generate_groq(prompt, system_prompt)
+            return self.generate_groq(prompt, system_prompt, max_tokens)
 
         if prefer == "local_only":
-            return self.generate_flan_t5(prompt, max_length=max_length, min_length=min_length)
+            return self.generate_local(prompt, system_prompt, max_tokens)
 
         if prefer == "groq" and self.use_groq_fallback:
             try:
-                return self.generate_groq(prompt, system_prompt)
+                return self.generate_groq(prompt, system_prompt, max_tokens)
             except Exception as e:
                 print(f"[ModelManager] Groq failed: {e}, falling back to local")
-                return self.generate_flan_t5(prompt, max_length=max_length, min_length=min_length)
+                return self.generate_local(prompt, system_prompt, max_tokens)
 
-        
+        # Default: try local first
         try:
-            result = self.generate_flan_t5(prompt, max_length=max_length, min_length=min_length)
-            
+            result = self.generate_local(prompt, system_prompt, max_tokens)
             if len(result.strip()) < 20 and self.use_groq_fallback:
                 print("[ModelManager] Local result too short, trying Groq...")
-                return self.generate_groq(prompt, system_prompt)
+                return self.generate_groq(prompt, system_prompt, max_tokens)
             return result
         except Exception as e:
             print(f"[ModelManager] Local failed: {e}")
             if self.use_groq_fallback:
-                return self.generate_groq(prompt, system_prompt)
+                return self.generate_groq(prompt, system_prompt, max_tokens)
             raise e
 
-    
+    # ── Convenience methods matching old FLAN-T5 interface ────
+    # These keep all existing services working without changes
+
+    def generate_flan_t5(self, prompt: str, max_length: int = 256, min_length: int = 30,
+                         num_beams: int = 4) -> str:
+        """Backward compatible — routes to Mistral instead of FLAN-T5"""
+        return self.generate_local(
+            prompt,
+            system_prompt="You are an educational AI assistant. Be concise and accurate.",
+            max_tokens=max_length,
+        )
+
+    # ── Sentence Embeddings (for RAG) ─────────────────────────
 
     def get_embed_model(self):
         """Load sentence-transformers model on demand"""
@@ -152,14 +177,14 @@ class ModelManager:
             print("[ModelManager] Embedding model loaded!")
         return self._embed_model
 
-    def encode_texts(self, texts):
+    def encode_texts(self, texts: list) -> "numpy.ndarray":
         """Generate embeddings for a list of texts"""
         import numpy as np
         model = self.get_embed_model()
         embeddings = model.encode(texts, convert_to_numpy=True, show_progress_bar=False)
         return embeddings.astype("float32")
 
-    
+    # ── spaCy (for NER / Flashcard generation) ────────────────
 
     def get_spacy(self):
         """Load spaCy model on demand"""
@@ -171,24 +196,20 @@ class ModelManager:
             except OSError:
                 print("[ModelManager] Downloading spaCy model...")
                 import subprocess
-                subprocess.run(["python", "-m", "spacy", "download", "en_core_web_sm"], check=True)
+                subprocess.run(["python3", "-m", "spacy", "download", "en_core_web_sm"], check=True)
                 self._spacy_nlp = spacy.load("en_core_web_sm")
             print("[ModelManager] spaCy loaded!")
         return self._spacy_nlp
 
-    
+    # ── Memory Management ─────────────────────────────────────
 
-    def unload_flan_t5(self):
-        """Free FLAN-T5 from memory"""
-        if self._flan_t5_model is not None:
-            del self._flan_t5_model
-            del self._flan_t5_tokenizer
-            self._flan_t5_model = None
-            self._flan_t5_tokenizer = None
+    def unload_local_model(self):
+        """Free Mistral from memory"""
+        if self._llm is not None:
+            del self._llm
+            self._llm = None
             gc.collect()
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-            print("[ModelManager] FLAN-T5 unloaded")
+            print("[ModelManager] Mistral model unloaded")
 
     def unload_embed_model(self):
         """Free embedding model from memory"""
@@ -200,7 +221,7 @@ class ModelManager:
 
     def unload_all(self):
         """Free all models"""
-        self.unload_flan_t5()
+        self.unload_local_model()
         self.unload_embed_model()
         if self._spacy_nlp:
             del self._spacy_nlp
@@ -208,11 +229,12 @@ class ModelManager:
         gc.collect()
         print("[ModelManager] All models unloaded")
 
-    def get_status(self):
+    def get_status(self) -> dict:
         """Return current model loading status"""
         return {
-            "device": str(self.device),
-            "flan_t5_loaded": self._flan_t5_model is not None,
+            "local_model": "Mistral-7B-Instruct-v0.2 (Q4_K_M)",
+            "local_model_loaded": self._llm is not None,
+            "local_model_exists": Path(self.local_model_path).exists(),
             "embed_model_loaded": self._embed_model is not None,
             "spacy_loaded": self._spacy_nlp is not None,
             "groq_available": self.use_groq_fallback,

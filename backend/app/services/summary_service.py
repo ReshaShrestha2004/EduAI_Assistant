@@ -1,12 +1,15 @@
+"""
+EduAI Summary Service
+Uses Mistral 7B (local) + Groq (cloud enhancement).
+Mistral handles 4096 token context — much better at combining summaries than FLAN-T5.
+"""
+
 from .model_manager import ModelManager
 from .pdf_service import extract_text_from_pdf, clean_text, chunk_text
 
 
 def summarize_document(file_path: str, prefer: str = "local") -> dict:
-    """
-    Summarize an entire PDF document.
-    Both local and Groq now process ALL content.
-    """
+    """Summarize an entire PDF document."""
     text = extract_text_from_pdf(file_path)
 
     if len(text) < 100:
@@ -18,8 +21,6 @@ def summarize_document(file_path: str, prefer: str = "local") -> dict:
         }
 
     manager = ModelManager.get_instance()
-
-    # Split into chunks
     chunks = chunk_text(text, chunk_size=500, overlap=50)
 
     if prefer in ("groq", "groq_only") and manager.use_groq_fallback:
@@ -27,25 +28,89 @@ def summarize_document(file_path: str, prefer: str = "local") -> dict:
 
     result = _summarize_local(text, chunks, manager)
 
+    # Fallback to Groq if local result is too short
     if len(result["summary"]) < 100 and manager.use_groq_fallback:
         return _summarize_groq(text, chunks, manager)
 
     return result
 
 
+def _summarize_local(full_text: str, chunks: list, manager) -> dict:
+    """
+    Mistral 7B summarization:
+    - 4096 token context = can handle much more text per chunk
+    - Summarize chunks in groups, then final combination
+    """
+    chunk_summaries = []
+
+    for i, chunk in enumerate(chunks):
+        try:
+            summary = manager.generate_local(
+                f"Summarize this section of educational notes. Include all key terms, definitions, and important concepts:\n\n{chunk}",
+                system_prompt="You are an expert educational summarizer. Be thorough but concise. Include every important concept and definition.",
+                max_tokens=300,
+            )
+            if summary.strip() and len(summary.strip()) > 15:
+                chunk_summaries.append(summary.strip())
+        except Exception as e:
+            print(f"[Summary] Local chunk {i+1} error: {e}")
+            continue
+
+    if not chunk_summaries:
+        return {
+            "summary": "Failed to generate summary.",
+            "model_used": "mistral_local",
+            "chunks_processed": 0,
+            "document_length": len(full_text)
+        }
+
+    # Combine — Mistral can handle more context than FLAN-T5
+    # Combine in groups of 4-5 (fits in 4096 context)
+    if len(chunk_summaries) <= 3:
+        combined = "\n\n".join(chunk_summaries)
+        final = manager.generate_local(
+            f"Combine these summaries into one well-structured, comprehensive summary with clear section headings:\n\n{combined}",
+            system_prompt="You are an expert at organizing educational content. Create a well-structured summary that covers all topics. Use clear headings for each section.",
+            max_tokens=1000,
+        )
+    else:
+        # Group in batches of 4
+        mid_summaries = []
+        for i in range(0, len(chunk_summaries), 4):
+            group = "\n\n".join(chunk_summaries[i:i+4])
+            mid = manager.generate_local(
+                f"Combine these section summaries into one coherent summary. Keep all key concepts and definitions:\n\n{group}",
+                system_prompt="You are an educational content organizer. Combine summaries while keeping all important details.",
+                max_tokens=500,
+            )
+            if mid.strip():
+                mid_summaries.append(mid.strip())
+
+        # Final combination
+        combined = "\n\n".join(mid_summaries)
+        final = manager.generate_local(
+            f"Create a comprehensive, well-structured summary from these sections. Use ## headings for each major topic. Include all key terms and definitions:\n\n{combined}",
+            system_prompt="You are an expert educational summarizer. Create a final comprehensive summary with clear headings that covers ALL topics. Do not skip any section.",
+            max_tokens=1500,
+        )
+
+    return {
+        "summary": final.strip(),
+        "model_used": "mistral_local",
+        "chunks_processed": len(chunks),
+        "document_length": len(full_text)
+    }
+
+
 def _summarize_groq(full_text: str, chunks: list, manager) -> dict:
-    """
-    Groq strategy: summarize EACH chunk, then combine ALL into final summary.
-    This ensures no content is missed even for long documents.
-    """
-    #  Summarize each chunk individually
+    """Groq summarization — processes every chunk then combines."""
     chunk_summaries = []
 
     for i, chunk in enumerate(chunks):
         try:
             summary = manager.generate_groq(
                 f"Summarize this section of an educational document. Be thorough, include all key terms, definitions, and concepts:\n\n{chunk}",
-                system_prompt="You are an educational content summarizer. Capture every important concept, definition, and fact. Be concise but thorough.",
+                system_prompt="You are an educational content summarizer. Capture every important concept, definition, and fact.",
                 max_tokens=400
             )
             if summary.strip():
@@ -62,7 +127,6 @@ def _summarize_groq(full_text: str, chunks: list, manager) -> dict:
             "document_length": len(full_text)
         }
 
-    # Combine all chunk summaries into final structured summary
     all_summaries = "\n\n".join([f"Part {i+1}:\n{s}" for i, s in enumerate(chunk_summaries)])
 
     try:
@@ -71,13 +135,11 @@ def _summarize_groq(full_text: str, chunks: list, manager) -> dict:
             f"Combine them into ONE comprehensive, well-structured summary. "
             f"Use markdown headings (##) for each major topic/unit. "
             f"Include ALL key concepts, definitions, and important details from every part. "
-            f"Do NOT skip any section.\n\n"
-            f"{all_summaries}",
+            f"Do NOT skip any section.\n\n{all_summaries}",
             system_prompt=(
                 "You are an expert at organizing educational content. "
-                "Create a comprehensive structured summary that covers EVERY topic from the document. "
-                "Use ## headings for major topics. Include key terms, definitions, and important facts. "
-                "The summary should be useful for studying and exam preparation. "
+                "Create a comprehensive structured summary that covers EVERY topic. "
+                "Use ## headings. Include key terms, definitions, and important facts. "
                 "Make sure NOTHING is left out."
             ),
             max_tokens=3000
@@ -89,55 +151,6 @@ def _summarize_groq(full_text: str, chunks: list, manager) -> dict:
     return {
         "summary": final_summary.strip(),
         "model_used": "groq",
-        "chunks_processed": len(chunks),
-        "document_length": len(full_text)
-    }
-
-
-def _summarize_local(full_text: str, chunks: list, manager) -> dict:
-    """
-    FLAN-T5 strategy: summarize each chunk, combine in groups of 3.
-    """
-    chunk_summaries = []
-
-    for i, chunk in enumerate(chunks):
-        try:
-            prompt = f"Summarize the following educational text:\n{chunk[:1500]}"
-            summary = manager.generate_flan_t5(prompt, max_length=200, min_length=20)
-            if summary.strip() and len(summary.strip()) > 15:
-                chunk_summaries.append(summary.strip())
-        except Exception as e:
-            print(f"[Summary] FLAN-T5 chunk {i+1} error: {e}")
-            continue
-
-    if not chunk_summaries:
-        return {
-            "summary": "Failed to generate summary.",
-            "model_used": "flan_t5_local",
-            "chunks_processed": 0,
-            "document_length": len(full_text)
-        }
-
-    if len(chunk_summaries) <= 3:
-        combined = " ".join(chunk_summaries)
-        prompt = f"Combine these summaries into one coherent summary:\n{combined[:1500]}"
-        final = manager.generate_flan_t5(prompt, max_length=400, min_length=50)
-    else:
-        mid_summaries = []
-        for i in range(0, len(chunk_summaries), 3):
-            group = " ".join(chunk_summaries[i:i+3])
-            prompt = f"Combine these summaries:\n{group[:1500]}"
-            mid = manager.generate_flan_t5(prompt, max_length=200, min_length=30)
-            if mid.strip():
-                mid_summaries.append(mid.strip())
-
-        combined = " ".join(mid_summaries)
-        prompt = f"Create a comprehensive summary:\n{combined[:1500]}"
-        final = manager.generate_flan_t5(prompt, max_length=500, min_length=50)
-
-    return {
-        "summary": final.strip(),
-        "model_used": "flan_t5_local",
         "chunks_processed": len(chunks),
         "document_length": len(full_text)
     }

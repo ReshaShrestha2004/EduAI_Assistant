@@ -337,7 +337,7 @@ export default function Dashboard() {
               fontSize: { xs: '28px', md: '36px' },
             }}
           >
-            Welcome back, {user?.full_name?.split(' ')[0] || 'there'}! 👋
+            Welcome back, {user?.full_name?.split(' ')[0] || 'there'}! 
           </Typography>
           <Typography variant="h6" sx={{ color: 'rgba(255, 255, 255, 0.7)', fontWeight: 400 }}>
             Ready to continue your learning journey?

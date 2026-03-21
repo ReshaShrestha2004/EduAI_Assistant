@@ -51,6 +51,11 @@ const DocumentCard = styled(Paper)({
   backdropFilter: 'blur(20px)',
   border: '1px solid rgba(255, 255, 255, 0.1)',
   transition: 'all 0.3s ease',
+  height: '100%',
+  minHeight: '280px',
+  display: 'flex',
+  flexDirection: 'column',
+  width: '100%',
   '&:hover': {
     transform: 'translateY(-4px)',
     boxShadow: '0 12px 24px rgba(138, 84, 255, 0.2)',
@@ -108,7 +113,6 @@ export default function MyDocuments() {
       setSuccess('Document deleted successfully!');
       setDeleteDialogOpen(false);
       setDocumentToDelete(null);
-      // Refresh the list
       fetchDocuments();
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
@@ -214,7 +218,6 @@ export default function MyDocuments() {
             <CircularProgress sx={{ color: '#8A54FF' }} size={48} />
           </Box>
         ) : documents.length === 0 ? (
-          // Empty State
           <Box sx={{ animation: `${fadeIn} 0.6s ease-out 0.1s backwards` }}>
             <EmptyState>
               <Description sx={{ fontSize: 64, color: 'rgba(138, 84, 255, 0.5)', mb: 2 }} />
@@ -246,15 +249,15 @@ export default function MyDocuments() {
             </EmptyState>
           </Box>
         ) : (
-          // Documents Grid
           <Grid container spacing={3}>
             {documents.map((doc, index) => (
-              <Grid item xs={12} sm={6} md={4} key={doc.id}>
+              <Grid item xs={12} sm={6} md={4} key={doc.id} sx={{ display: 'flex' }}>
                 <DocumentCard
                   sx={{
                     animation: `${fadeIn} 0.6s ease-out ${index * 0.1}s backwards`,
                   }}
                 >
+                  {/* Document Info */}
                   <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2, mb: 2 }}>
                     <Box
                       sx={{
@@ -270,16 +273,17 @@ export default function MyDocuments() {
                     >
                       <Description sx={{ color: '#FFFFFF', fontSize: 24 }} />
                     </Box>
-                    <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                    <Box sx={{ flexGrow: 1, minWidth: 0, overflow: 'hidden' }}>
                       <Typography
                         sx={{
                           color: '#FFFFFF',
                           fontWeight: 600,
                           mb: 0.5,
-                          fontSize: '16px',
+                          fontSize: '15px',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
                           whiteSpace: 'nowrap',
+                          maxWidth: '100%',
                         }}
                         title={doc.original_filename}
                       >
@@ -291,6 +295,7 @@ export default function MyDocuments() {
                     </Box>
                   </Box>
 
+                  {/* Date */}
                   <Typography
                     variant="caption"
                     sx={{
@@ -302,6 +307,7 @@ export default function MyDocuments() {
                     Uploaded {formatDate(doc.uploaded_at)}
                   </Typography>
 
+                  {/* PDF Chip */}
                   <Chip
                     label="PDF"
                     size="small"
@@ -313,21 +319,21 @@ export default function MyDocuments() {
                     }}
                   />
 
-                  <Box sx={{ display: 'flex', gap: 1, mt: 2, flexWrap: 'wrap' }}>
+                  {/* Action Buttons — pushed to bottom */}
+                  <Box sx={{ display: 'flex', gap: 1, mt: 'auto', pt: 2, flexWrap: 'wrap' }}>
                     <Button
                       size="small"
                       startIcon={<AutoAwesome />}
                       onClick={() => navigate('/summaries', { state: { documentId: doc.id } })}
                       sx={{
                         flex: 1,
-                        minWidth: '120px',
+                        minWidth: '100px',
                         background: 'rgba(138, 84, 255, 0.1)',
                         color: '#8A54FF',
                         textTransform: 'none',
                         borderRadius: '8px',
-                        '&:hover': {
-                          background: 'rgba(138, 84, 255, 0.2)',
-                        },
+                        fontSize: '12px',
+                        '&:hover': { background: 'rgba(138, 84, 255, 0.2)' },
                       }}
                     >
                       Summary
@@ -338,14 +344,13 @@ export default function MyDocuments() {
                       onClick={() => navigate('/qa-assistant', { state: { documentId: doc.id } })}
                       sx={{
                         flex: 1,
-                        minWidth: '120px',
+                        minWidth: '100px',
                         background: 'rgba(79, 172, 254, 0.1)',
                         color: '#4FACFE',
                         textTransform: 'none',
                         borderRadius: '8px',
-                        '&:hover': {
-                          background: 'rgba(79, 172, 254, 0.2)',
-                        },
+                        fontSize: '12px',
+                        '&:hover': { background: 'rgba(79, 172, 254, 0.2)' },
                       }}
                     >
                       Q&A
@@ -356,14 +361,13 @@ export default function MyDocuments() {
                       onClick={() => navigate('/flashcards', { state: { documentId: doc.id } })}
                       sx={{
                         flex: 1,
-                        minWidth: '120px',
+                        minWidth: '100px',
                         background: 'rgba(245, 87, 108, 0.1)',
                         color: '#F5576C',
                         textTransform: 'none',
                         borderRadius: '8px',
-                        '&:hover': {
-                          background: 'rgba(245, 87, 108, 0.2)',
-                        },
+                        fontSize: '12px',
+                        '&:hover': { background: 'rgba(245, 87, 108, 0.2)' },
                       }}
                     >
                       Flashcards
@@ -374,20 +378,20 @@ export default function MyDocuments() {
                       onClick={() => navigate('/quizzes', { state: { documentId: doc.id } })}
                       sx={{
                         flex: 1,
-                        minWidth: '120px',
+                        minWidth: '100px',
                         background: 'rgba(255, 217, 61, 0.1)',
                         color: '#FFD93D',
                         textTransform: 'none',
                         borderRadius: '8px',
-                        '&:hover': {
-                          background: 'rgba(255, 217, 61, 0.2)',
-                        },
+                        fontSize: '12px',
+                        '&:hover': { background: 'rgba(255, 217, 61, 0.2)' },
                       }}
                     >
                       Quiz
                     </Button>
                   </Box>
 
+                  {/* Delete Button */}
                   <Box sx={{ display: 'flex', gap: 1, mt: 2, justifyContent: 'flex-end' }}>
                     <IconButton
                       size="small"
@@ -395,9 +399,7 @@ export default function MyDocuments() {
                       sx={{
                         color: '#EF4444',
                         background: 'rgba(239, 68, 68, 0.1)',
-                        '&:hover': {
-                          background: 'rgba(239, 68, 68, 0.2)',
-                        },
+                        '&:hover': { background: 'rgba(239, 68, 68, 0.2)' },
                       }}
                       title="Delete"
                     >
@@ -439,9 +441,7 @@ export default function MyDocuments() {
               sx={{
                 color: 'rgba(255, 255, 255, 0.7)',
                 textTransform: 'none',
-                '&:hover': {
-                  background: 'rgba(255, 255, 255, 0.05)',
-                },
+                '&:hover': { background: 'rgba(255, 255, 255, 0.05)' },
               }}
             >
               Cancel
@@ -454,12 +454,8 @@ export default function MyDocuments() {
                 background: '#EF4444',
                 color: '#fff',
                 textTransform: 'none',
-                '&:hover': {
-                  background: '#DC2626',
-                },
-                '&:disabled': {
-                  background: 'rgba(239, 68, 68, 0.5)',
-                },
+                '&:hover': { background: '#DC2626' },
+                '&:disabled': { background: 'rgba(239, 68, 68, 0.5)' },
               }}
             >
               {deleting ? <CircularProgress size={20} sx={{ color: '#fff' }} /> : 'Delete'}
