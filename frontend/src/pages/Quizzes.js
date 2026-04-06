@@ -10,8 +10,6 @@ import {
   Button,
   Paper,
   IconButton,
-  Card,
-  CardContent,
   Chip,
   Alert,
   MenuItem,
@@ -20,10 +18,10 @@ import {
   InputLabel,
   CircularProgress,
   LinearProgress,
-  Grid,
   Divider,
   ToggleButton,
   ToggleButtonGroup,
+  Collapse,
 } from "@mui/material";
 import {
   ArrowBack,
@@ -35,12 +33,13 @@ import {
   FolderOpen,
   NavigateNext,
   Replay,
-  EmojiEvents,
   AutoAwesome,
   School,
   SmartToy,
   Computer,
   Add,
+  ExpandMore,
+  ExpandLess,
 } from "@mui/icons-material";
 import { styled, keyframes } from "@mui/material/styles";
 
@@ -77,18 +76,17 @@ const ActionButton = styled(Button)({
 });
 const StyledSelect = styled(Select)({
   "& .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(138,84,255,0.3)" },
-  "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#FFD93D" },
-  "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "#FFD93D" },
+  "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#8A54FF" },
+  "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "#8A54FF" },
   "& .MuiSelect-select": { color: "#FFFFFF" },
-  "& .MuiSvgIcon-root": { color: "#FFD93D" },
+  "& .MuiSvgIcon-root": { color: "#8A54FF" },
 });
 const ResultCard = styled(Paper)({
-  padding: "48px",
+  padding: "40px",
   borderRadius: "24px",
   background: "rgba(255,255,255,0.05)",
   backdropFilter: "blur(20px)",
   border: "1px solid rgba(255,255,255,0.1)",
-  textAlign: "center",
   animation: `${scaleIn} 0.5s ease-out`,
 });
 
@@ -101,14 +99,14 @@ const OptionCard = styled(Paper)(({
   let bg = "rgba(255,255,255,0.04)",
     border = "1px solid rgba(255,255,255,0.1)";
   if (showResult && correct) {
-    bg = "rgba(107,207,127,0.15)";
-    border = "1px solid rgba(107,207,127,0.5)";
+    bg = "rgba(107,207,127,0.12)";
+    border = "1px solid rgba(107,207,127,0.4)";
   } else if (showResult && incorrect) {
-    bg = "rgba(239,68,68,0.15)";
-    border = "1px solid rgba(239,68,68,0.5)";
+    bg = "rgba(239,68,68,0.12)";
+    border = "1px solid rgba(239,68,68,0.4)";
   } else if (selected) {
-    bg = "rgba(255,217,61,0.12)";
-    border = "1px solid rgba(255,217,61,0.4)";
+    bg = "rgba(138,84,255,0.12)";
+    border = "1px solid rgba(138,84,255,0.4)";
   }
   return {
     padding: "16px 20px",
@@ -119,8 +117,8 @@ const OptionCard = styled(Paper)(({
     transition: "all 0.2s ease",
     ...(!showResult && {
       "&:hover": {
-        background: "rgba(255,217,61,0.08)",
-        borderColor: "rgba(255,217,61,0.3)",
+        background: "rgba(138,84,255,0.08)",
+        borderColor: "rgba(138,84,255,0.3)",
         transform: "translateX(4px)",
       },
     }),
@@ -129,10 +127,10 @@ const OptionCard = styled(Paper)(({
 
 const DifficultyChip = styled(Chip)(({ level }) => {
   const c = {
-    recall: { bg: "rgba(107,207,127,0.15)", color: "#6BCF7F" },
-    comprehension: { bg: "rgba(255,217,61,0.15)", color: "#FFD93D" },
+    recall: { bg: "rgba(138,84,255,0.15)", color: "#B88CFF" },
+    comprehension: { bg: "rgba(79,172,254,0.15)", color: "#4FACFE" },
     application: { bg: "rgba(245,87,108,0.15)", color: "#F5576C" },
-  }[level] || { bg: "rgba(255,217,61,0.15)", color: "#FFD93D" };
+  }[level] || { bg: "rgba(138,84,255,0.15)", color: "#B88CFF" };
   return {
     background: c.bg,
     color: c.color,
@@ -143,7 +141,14 @@ const DifficultyChip = styled(Chip)(({ level }) => {
 
 const markdownComponents = {
   p: ({ children }) => (
-    <Typography sx={{ color: "rgba(255,255,255,0.8)", lineHeight: 1.7, mb: 1 }}>
+    <Typography
+      sx={{
+        color: "rgba(255,255,255,0.75)",
+        lineHeight: 1.7,
+        mb: 1,
+        fontSize: "14px",
+      }}
+    >
       {children}
     </Typography>
   ),
@@ -153,7 +158,13 @@ const markdownComponents = {
   li: ({ children }) => (
     <Typography
       component="li"
-      sx={{ color: "rgba(255,255,255,0.8)", lineHeight: 1.7, ml: 2, mb: 0.5 }}
+      sx={{
+        color: "rgba(255,255,255,0.75)",
+        lineHeight: 1.7,
+        ml: 2,
+        mb: 0.5,
+        fontSize: "14px",
+      }}
     >
       {children}
     </Typography>
@@ -191,8 +202,8 @@ export default function Quizzes() {
   const [difficultyFilter, setDifficultyFilter] = useState("all");
   const [aiMode, setAiMode] = useState("local");
   const [modelUsed, setModelUsed] = useState("");
-  const [totalQuizzesTaken, setTotalQuizzesTaken] = useState(0);
-  const [allTimeScore, setAllTimeScore] = useState({ correct: 0, total: 0 });
+  const [showReview, setShowReview] = useState(false);
+  const [quizHistory, setQuizHistory] = useState([]);
 
   useEffect(() => {
     fetchDocuments();
@@ -225,6 +236,7 @@ export default function Quizzes() {
     if (!selectedDocument) return;
     setGenerating(true);
     setError("");
+    setShowReview(false);
     try {
       const response = await api.post(
         `/ai/documents/${selectedDocumentId}/mcqs`,
@@ -247,7 +259,7 @@ export default function Quizzes() {
       setQuizCompleted(false);
       setSelectedAnswer(null);
       setShowResult(false);
-      setSuccess(`${mcqs.length} questions generated!`);
+      setSuccess(`${mcqs.length} questions generated`);
       setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
       setError(err.response?.data?.detail || "Failed to generate quiz");
@@ -260,6 +272,7 @@ export default function Quizzes() {
     if (!selectedDocument) return;
     setGenerating(true);
     setError("");
+    setShowReview(false);
     try {
       const response = await api.post(
         `/ai/documents/${selectedDocumentId}/mcqs`,
@@ -267,7 +280,7 @@ export default function Quizzes() {
       );
       const mcqs = response.data.questions || [];
       if (mcqs.length === 0) {
-        setError("No more questions could be generated.");
+        setError("Could not generate additional questions.");
         setGenerating(false);
         return;
       }
@@ -279,8 +292,7 @@ export default function Quizzes() {
       setQuizCompleted(false);
       setSelectedAnswer(null);
       setShowResult(false);
-      setTotalQuizzesTaken((prev) => prev + 1);
-      setSuccess(`${mcqs.length} new questions generated!`);
+      setSuccess(`${mcqs.length} new questions ready`);
       setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
       setError(
@@ -300,18 +312,31 @@ export default function Quizzes() {
     const q = questions[currentQuestionIndex];
     const isCorrect = selectedAnswer === q.correctAnswer;
     if (isCorrect) setScore((p) => p + 1);
-    setAnswers((p) => [...p, { questionId: q.id, selectedAnswer, isCorrect }]);
+    setAnswers((p) => [
+      ...p,
+      {
+        questionIndex: currentQuestionIndex,
+        selectedAnswer,
+        isCorrect,
+        correctAnswer: q.correctAnswer,
+      },
+    ]);
     setShowResult(true);
   };
 
   const handleNextQuestion = () => {
     if (currentQuestionIndex + 1 >= questions.length) {
       setQuizCompleted(true);
-      setTotalQuizzesTaken((prev) => prev + 1);
-      setAllTimeScore((prev) => ({
-        correct: prev.correct + score,
-        total: prev.total + questions.length,
-      }));
+      setQuizHistory((prev) => [
+        ...prev,
+        {
+          score,
+          total: questions.length,
+          difficulty: difficultyFilter,
+          model: modelUsed,
+          timestamp: Date.now(),
+        },
+      ]);
     } else {
       setCurrentQuestionIndex((p) => p + 1);
       setSelectedAnswer(null);
@@ -328,27 +353,26 @@ export default function Quizzes() {
     setQuizCompleted(false);
     setSelectedAnswer(null);
     setShowResult(false);
-  };
-
-  const handleBackToConfig = () => {
-    setQuizStarted(false);
-    setQuizCompleted(false);
-    setQuestions([]);
-    setCurrentQuestionIndex(0);
-    setScore(0);
-    setAnswers([]);
-    setSelectedAnswer(null);
-    setShowResult(false);
+    setShowReview(false);
   };
 
   const getScoreMessage = () => {
     const pct = (score / questions.length) * 100;
-    if (pct >= 90)
-      return { text: "Outstanding!", emoji: "🏆", color: "#6BCF7F" };
-    if (pct >= 70) return { text: "Great job!", emoji: "🌟", color: "#4FACFE" };
-    if (pct >= 50)
-      return { text: "Good effort!", emoji: "💪", color: "#FFD93D" };
-    return { text: "Keep studying!", emoji: "📚", color: "#F5576C" };
+    if (pct >= 90) return { text: "Excellent Performance", color: "#6BCF7F" };
+    if (pct >= 70) return { text: "Strong Performance", color: "#4FACFE" };
+    if (pct >= 50) return { text: "Satisfactory", color: "#B88CFF" };
+    return { text: "Needs Improvement", color: "#F5576C" };
+  };
+
+  const getTotalStats = () => {
+    const totalCorrect = quizHistory.reduce((sum, h) => sum + h.score, 0);
+    const totalQ = quizHistory.reduce((sum, h) => sum + h.total, 0);
+    return {
+      totalCorrect,
+      totalQ,
+      attempts: quizHistory.length,
+      percentage: totalQ > 0 ? Math.round((totalCorrect / totalQ) * 100) : 0,
+    };
   };
 
   const currentQuestion = questions[currentQuestionIndex];
@@ -356,15 +380,18 @@ export default function Quizzes() {
     questions.length > 0
       ? ((currentQuestionIndex + 1) / questions.length) * 100
       : 0;
+  const wrongAnswers = answers.filter((a) => !a.isCorrect);
+  const correctAnswersArr = answers.filter((a) => a.isCorrect);
 
   return (
     <PageContainer>
       <Container maxWidth="lg">
+        {/* Header */}
         <Box sx={{ mb: 4, animation: `${fadeIn} 0.6s ease-out` }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
             <IconButton
               onClick={() => navigate("/dashboard")}
-              sx={{ color: "#FFD93D" }}
+              sx={{ color: "#8A54FF" }}
             >
               <ArrowBack />
             </IconButton>
@@ -397,20 +424,206 @@ export default function Quizzes() {
           </Alert>
         )}
 
+        {/* Session Stats - Always Visible When There Is History */}
+        {quizHistory.length > 0 && (
+          <Paper
+            sx={{
+              p: 3,
+              mb: 3,
+              borderRadius: "16px",
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              animation: `${fadeIn} 0.3s ease-out`,
+            }}
+          >
+            <Typography
+              sx={{
+                color: "rgba(255,255,255,0.5)",
+                fontSize: "12px",
+                fontWeight: 600,
+                textTransform: "uppercase",
+                letterSpacing: "1px",
+                mb: 2,
+              }}
+            >
+              Session Performance
+            </Typography>
+            <Box
+              sx={{
+                display: "flex",
+                gap: 5,
+                flexWrap: "wrap",
+                alignItems: "center",
+              }}
+            >
+              <Box>
+                <Typography
+                  sx={{
+                    color: "#FFFFFF",
+                    fontWeight: 800,
+                    fontSize: "28px",
+                    lineHeight: 1,
+                  }}
+                >
+                  {getTotalStats().attempts}
+                </Typography>
+                <Typography
+                  sx={{
+                    color: "rgba(255,255,255,0.4)",
+                    fontSize: "13px",
+                    mt: 0.5,
+                  }}
+                >
+                  Quizzes Taken
+                </Typography>
+              </Box>
+              <Box
+                sx={{
+                  width: "1px",
+                  height: "40px",
+                  background: "rgba(255,255,255,0.08)",
+                }}
+              />
+              <Box>
+                <Typography
+                  sx={{
+                    color: "#FFFFFF",
+                    fontWeight: 800,
+                    fontSize: "28px",
+                    lineHeight: 1,
+                  }}
+                >
+                  {getTotalStats().totalCorrect}
+                  <span
+                    style={{
+                      color: "rgba(255,255,255,0.3)",
+                      fontWeight: 400,
+                      fontSize: "16px",
+                    }}
+                  >
+                    /{getTotalStats().totalQ}
+                  </span>
+                </Typography>
+                <Typography
+                  sx={{
+                    color: "rgba(255,255,255,0.4)",
+                    fontSize: "13px",
+                    mt: 0.5,
+                  }}
+                >
+                  Correct Answers
+                </Typography>
+              </Box>
+              <Box
+                sx={{
+                  width: "1px",
+                  height: "40px",
+                  background: "rgba(255,255,255,0.08)",
+                }}
+              />
+              <Box>
+                <Typography
+                  sx={{
+                    color:
+                      getTotalStats().percentage >= 70
+                        ? "#6BCF7F"
+                        : getTotalStats().percentage >= 50
+                          ? "#B88CFF"
+                          : "#F5576C",
+                    fontWeight: 800,
+                    fontSize: "28px",
+                    lineHeight: 1,
+                  }}
+                >
+                  {getTotalStats().percentage}%
+                </Typography>
+                <Typography
+                  sx={{
+                    color: "rgba(255,255,255,0.4)",
+                    fontSize: "13px",
+                    mt: 0.5,
+                  }}
+                >
+                  Accuracy
+                </Typography>
+              </Box>
+              <Box
+                sx={{
+                  width: "1px",
+                  height: "40px",
+                  background: "rgba(255,255,255,0.08)",
+                  display: { xs: "none", md: "block" },
+                }}
+              />
+              <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", flex: 1 }}>
+                {quizHistory.map((h, i) => {
+                  const pct = Math.round((h.score / h.total) * 100);
+                  return (
+                    <Box key={i} sx={{ textAlign: "center", minWidth: "48px" }}>
+                      <Box
+                        sx={{
+                          width: 40,
+                          height: 40,
+                          borderRadius: "10px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          mx: "auto",
+                          background:
+                            pct >= 70
+                              ? "rgba(107,207,127,0.12)"
+                              : pct >= 50
+                                ? "rgba(138,84,255,0.12)"
+                                : "rgba(245,87,108,0.12)",
+                          border: `1px solid ${pct >= 70 ? "rgba(107,207,127,0.25)" : pct >= 50 ? "rgba(138,84,255,0.25)" : "rgba(245,87,108,0.25)"}`,
+                        }}
+                      >
+                        <Typography
+                          sx={{
+                            color:
+                              pct >= 70
+                                ? "#6BCF7F"
+                                : pct >= 50
+                                  ? "#B88CFF"
+                                  : "#F5576C",
+                            fontWeight: 700,
+                            fontSize: "13px",
+                          }}
+                        >
+                          {pct}%
+                        </Typography>
+                      </Box>
+                      <Typography
+                        sx={{
+                          color: "rgba(255,255,255,0.25)",
+                          fontSize: "10px",
+                          mt: 0.5,
+                        }}
+                      >
+                        #{i + 1}
+                      </Typography>
+                    </Box>
+                  );
+                })}
+              </Box>
+            </Box>
+          </Paper>
+        )}
+
         {/* Document Selector */}
         {!quizStarted && (
           <Box sx={{ animation: `${fadeIn} 0.6s ease-out 0.1s backwards` }}>
             {loading ? (
               <DocumentSelectorCard>
                 <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
-                  <CircularProgress sx={{ color: "#FFD93D" }} />
+                  <CircularProgress sx={{ color: "#8A54FF" }} />
                 </Box>
               </DocumentSelectorCard>
             ) : documents.length === 0 ? (
               <DocumentSelectorCard>
                 <Box sx={{ textAlign: "center", py: 4 }}>
                   <FolderOpen
-                    sx={{ fontSize: 64, color: "rgba(255,217,61,0.5)", mb: 2 }}
+                    sx={{ fontSize: 64, color: "rgba(138,84,255,0.4)", mb: 2 }}
                   />
                   <Typography variant="h6" sx={{ color: "#FFFFFF", mb: 2 }}>
                     No Documents Found
@@ -420,8 +633,8 @@ export default function Quizzes() {
                     startIcon={<CloudUpload />}
                     onClick={() => navigate("/upload")}
                     sx={{
-                      background: "linear-gradient(135deg, #FFD93D, #FF9B6A)",
-                      color: "#1A122A",
+                      background: "linear-gradient(135deg, #8A54FF, #9F6EFF)",
+                      color: "#fff",
                     }}
                   >
                     Upload Document
@@ -433,7 +646,7 @@ export default function Quizzes() {
                 <Box
                   sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3 }}
                 >
-                  <Quiz sx={{ color: "#FFD93D", fontSize: 28 }} />
+                  <Quiz sx={{ color: "#8A54FF", fontSize: 28 }} />
                   <Typography
                     variant="h6"
                     sx={{ color: "#FFFFFF", fontWeight: 700 }}
@@ -456,7 +669,7 @@ export default function Quizzes() {
                           sx={{ display: "flex", alignItems: "center", gap: 1 }}
                         >
                           <Description
-                            sx={{ fontSize: 20, color: "#FFD93D" }}
+                            sx={{ fontSize: 20, color: "#8A54FF" }}
                           />
                           <Box>
                             <Typography sx={{ fontWeight: 600 }}>
@@ -481,14 +694,14 @@ export default function Quizzes() {
                       sx={{
                         p: 2,
                         borderRadius: "12px",
-                        background: "rgba(255,217,61,0.08)",
+                        background: "rgba(138,84,255,0.06)",
                         mb: 3,
                         display: "flex",
                         alignItems: "center",
                         gap: 2,
                       }}
                     >
-                      <Description sx={{ color: "#FFD93D" }} />
+                      <Description sx={{ color: "#8A54FF" }} />
                       <Box sx={{ flexGrow: 1 }}>
                         <Typography sx={{ color: "#FFFFFF", fontWeight: 600 }}>
                           {selectedDocument.original_filename}
@@ -498,14 +711,20 @@ export default function Quizzes() {
                         label="Selected"
                         size="small"
                         sx={{
-                          background: "rgba(107,207,127,0.2)",
+                          background: "rgba(107,207,127,0.15)",
                           color: "#6BCF7F",
+                          fontWeight: 600,
                         }}
                       />
                     </Box>
 
                     <Typography
-                      sx={{ color: "#FFFFFF", fontWeight: 600, mb: 2 }}
+                      sx={{
+                        color: "rgba(255,255,255,0.7)",
+                        fontWeight: 600,
+                        mb: 1.5,
+                        fontSize: "14px",
+                      }}
                     >
                       Difficulty Level
                     </Typography>
@@ -531,20 +750,21 @@ export default function Quizzes() {
                             cursor: "pointer",
                             py: 2.5,
                             px: 1,
-                            fontSize: "14px",
+                            fontSize: "13px",
                             fontWeight: 600,
                             background:
                               difficultyFilter === level.value
-                                ? "rgba(255,217,61,0.2)"
-                                : "rgba(255,255,255,0.06)",
+                                ? "rgba(138,84,255,0.15)"
+                                : "rgba(255,255,255,0.04)",
                             color:
                               difficultyFilter === level.value
-                                ? "#FFD93D"
-                                : "rgba(255,255,255,0.7)",
+                                ? "#B88CFF"
+                                : "rgba(255,255,255,0.5)",
                             border:
                               difficultyFilter === level.value
-                                ? "1px solid rgba(255,217,61,0.4)"
-                                : "1px solid rgba(255,255,255,0.1)",
+                                ? "1px solid rgba(138,84,255,0.3)"
+                                : "1px solid rgba(255,255,255,0.08)",
+                            "&:hover": { background: "rgba(138,84,255,0.1)" },
                           }}
                         />
                       ))}
@@ -553,9 +773,10 @@ export default function Quizzes() {
                     <Box sx={{ mb: 3 }}>
                       <Typography
                         sx={{
-                          color: "rgba(255,255,255,0.6)",
+                          color: "rgba(255,255,255,0.7)",
                           mb: 1,
                           fontSize: "14px",
+                          fontWeight: 600,
                         }}
                       >
                         AI Engine
@@ -572,11 +793,11 @@ export default function Quizzes() {
                           value="local"
                           sx={{
                             color: "rgba(255,255,255,0.6)",
-                            borderColor: "rgba(255,255,255,0.15)",
+                            borderColor: "rgba(255,255,255,0.12)",
                             "&.Mui-selected": {
-                              background: "rgba(138,84,255,0.2)",
+                              background: "rgba(138,84,255,0.15)",
                               color: "#B88CFF",
-                              borderColor: "#8A54FF",
+                              borderColor: "rgba(138,84,255,0.3)",
                             },
                           }}
                         >
@@ -586,11 +807,11 @@ export default function Quizzes() {
                           value="groq"
                           sx={{
                             color: "rgba(255,255,255,0.6)",
-                            borderColor: "rgba(255,255,255,0.15)",
+                            borderColor: "rgba(255,255,255,0.12)",
                             "&.Mui-selected": {
-                              background: "rgba(79,172,254,0.2)",
+                              background: "rgba(79,172,254,0.15)",
                               color: "#4FACFE",
-                              borderColor: "#4FACFE",
+                              borderColor: "rgba(79,172,254,0.3)",
                             },
                           }}
                         >
@@ -609,12 +830,12 @@ export default function Quizzes() {
                     onClick={handleGenerateQuiz}
                     disabled={!selectedDocument || generating}
                     sx={{
-                      background: "linear-gradient(135deg, #FFD93D, #FF9B6A)",
-                      color: "#1A122A",
+                      background: "linear-gradient(135deg, #8A54FF, #9F6EFF)",
+                      color: "#fff",
                       py: 1.5,
                       "&:disabled": {
-                        background: "rgba(255,217,61,0.3)",
-                        color: "rgba(255,255,255,0.4)",
+                        background: "rgba(138,84,255,0.2)",
+                        color: "rgba(255,255,255,0.3)",
                       },
                     }}
                   >
@@ -626,8 +847,8 @@ export default function Quizzes() {
                       startIcon={<CloudUpload />}
                       onClick={() => navigate("/upload")}
                       sx={{
-                        borderColor: "rgba(255,217,61,0.4)",
-                        color: "#FFD93D",
+                        borderColor: "rgba(138,84,255,0.3)",
+                        color: "#8A54FF",
                       }}
                     >
                       Upload New
@@ -645,38 +866,22 @@ export default function Quizzes() {
                         mb: 2,
                       }}
                     >
-                      <Quiz
-                        sx={{
-                          color: "#FFD93D",
-                          animation: `${pulse} 2s infinite`,
-                        }}
-                      />
-                      <Typography sx={{ color: "#FFFFFF", fontWeight: 600 }}>
-                        {aiMode === "groq"
-                          ? "Generating your quiz questions..."
-                          : "Generating your quiz questions..."}
+                      <CircularProgress size={20} sx={{ color: "#8A54FF" }} />
+                      <Typography
+                        sx={{ color: "rgba(255,255,255,0.7)", fontWeight: 500 }}
+                      >
+                        Preparing your practice test...
                       </Typography>
                     </Box>
                     <LinearProgress
                       sx={{
-                        background: "rgba(255,217,61,0.2)",
+                        background: "rgba(138,84,255,0.1)",
                         "& .MuiLinearProgress-bar": {
                           background:
-                            "linear-gradient(90deg, #FFD93D, #FF9B6A)",
+                            "linear-gradient(90deg, #8A54FF, #B88CFF)",
                         },
                       }}
                     />
-                    <Typography
-                      sx={{
-                        color: "rgba(255,255,255,0.4)",
-                        mt: 1,
-                        fontSize: "13px",
-                      }}
-                    >
-                      {aiMode === "local"
-                        ? "First run may take longer as the model loads"
-                        : "This usually takes a few seconds"}
-                    </Typography>
                   </Box>
                 )}
               </DocumentSelectorCard>
@@ -687,14 +892,13 @@ export default function Quizzes() {
         {/* Quiz In Progress */}
         {quizStarted && !quizCompleted && currentQuestion && (
           <Box sx={{ animation: `${fadeIn} 0.6s ease-out` }}>
-            {/* Progress Bar */}
             <Paper
               sx={{
                 p: 2.5,
                 mb: 3,
                 borderRadius: "16px",
-                background: "rgba(255,255,255,0.05)",
-                border: "1px solid rgba(255,255,255,0.1)",
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.08)",
               }}
             >
               <Box
@@ -705,19 +909,17 @@ export default function Quizzes() {
                   mb: 1.5,
                 }}
               >
-                <Typography sx={{ color: "#FFFFFF", fontWeight: 600 }}>
+                <Typography
+                  sx={{ color: "#FFFFFF", fontWeight: 600, fontSize: "14px" }}
+                >
                   Question {currentQuestionIndex + 1} of {questions.length}
                 </Typography>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                  <Chip
-                    label={`Score: ${score}/${answers.length}`}
-                    size="small"
-                    sx={{
-                      background: "rgba(107,207,127,0.15)",
-                      color: "#6BCF7F",
-                      fontWeight: 700,
-                    }}
-                  />
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                  <Typography
+                    sx={{ color: "rgba(255,255,255,0.4)", fontSize: "13px" }}
+                  >
+                    {score}/{answers.length} correct
+                  </Typography>
                   <DifficultyChip
                     label={(
                       currentQuestion.difficulty || "recall"
@@ -725,41 +927,23 @@ export default function Quizzes() {
                     level={currentQuestion.difficulty || "recall"}
                     size="small"
                   />
-                  <Chip
-                    icon={
-                      modelUsed?.includes("groq") ? (
-                        <SmartToy sx={{ fontSize: 14 }} />
-                      ) : (
-                        <Computer sx={{ fontSize: 14 }} />
-                      )
-                    }
-                    label={modelUsed?.includes("groq") ? "Groq" : "Local"}
-                    size="small"
-                    sx={{
-                      background: "rgba(255,255,255,0.06)",
-                      color: "rgba(255,255,255,0.4)",
-                      height: "24px",
-                      fontSize: "11px",
-                    }}
-                  />
                 </Box>
               </Box>
               <LinearProgress
                 variant="determinate"
                 value={progress}
                 sx={{
-                  height: 6,
-                  borderRadius: 3,
-                  background: "rgba(255,255,255,0.1)",
+                  height: 4,
+                  borderRadius: 2,
+                  background: "rgba(255,255,255,0.06)",
                   "& .MuiLinearProgress-bar": {
-                    background: "linear-gradient(90deg, #FFD93D, #FF9B6A)",
-                    borderRadius: 3,
+                    background: "linear-gradient(90deg, #8A54FF, #B88CFF)",
+                    borderRadius: 2,
                   },
                 }}
               />
             </Paper>
 
-            {/* Question */}
             <QuestionCard sx={{ mb: 3 }}>
               <Typography
                 variant="h5"
@@ -768,6 +952,7 @@ export default function Quizzes() {
                   fontWeight: 700,
                   mb: 4,
                   lineHeight: 1.5,
+                  fontSize: { xs: "18px", md: "22px" },
                 }}
               >
                 {currentQuestion.question}
@@ -800,14 +985,14 @@ export default function Quizzes() {
                         flexShrink: 0,
                         background:
                           showResult && index === currentQuestion.correctAnswer
-                            ? "rgba(107,207,127,0.3)"
+                            ? "rgba(107,207,127,0.2)"
                             : showResult &&
                                 selectedAnswer === index &&
                                 index !== currentQuestion.correctAnswer
-                              ? "rgba(239,68,68,0.3)"
+                              ? "rgba(239,68,68,0.2)"
                               : selectedAnswer === index
-                                ? "rgba(255,217,61,0.25)"
-                                : "rgba(255,255,255,0.06)",
+                                ? "rgba(138,84,255,0.2)"
+                                : "rgba(255,255,255,0.04)",
                         color:
                           showResult && index === currentQuestion.correctAnswer
                             ? "#6BCF7F"
@@ -816,8 +1001,8 @@ export default function Quizzes() {
                                 index !== currentQuestion.correctAnswer
                               ? "#EF4444"
                               : selectedAnswer === index
-                                ? "#FFD93D"
-                                : "rgba(255,255,255,0.5)",
+                                ? "#B88CFF"
+                                : "rgba(255,255,255,0.4)",
                         fontWeight: 700,
                         fontSize: "14px",
                       }}
@@ -834,8 +1019,8 @@ export default function Quizzes() {
                     </Box>
                     <Typography
                       sx={{
-                        color: "rgba(255,255,255,0.9)",
-                        fontSize: "16px",
+                        color: "rgba(255,255,255,0.85)",
+                        fontSize: "15px",
                         fontWeight: selectedAnswer === index ? 600 : 400,
                       }}
                     >
@@ -845,59 +1030,41 @@ export default function Quizzes() {
                 ))}
               </Box>
 
-              {/* Explanation */}
               {showResult && currentQuestion.explanation && (
                 <Box
                   sx={{
                     mt: 3,
                     p: 3,
-                    borderRadius: "16px",
+                    borderRadius: "14px",
                     background:
                       selectedAnswer === currentQuestion.correctAnswer
-                        ? "rgba(107,207,127,0.08)"
-                        : "rgba(245,87,108,0.08)",
-                    border: `1px solid ${selectedAnswer === currentQuestion.correctAnswer ? "rgba(107,207,127,0.2)" : "rgba(245,87,108,0.2)"}`,
+                        ? "rgba(107,207,127,0.06)"
+                        : "rgba(245,87,108,0.06)",
+                    border: `1px solid ${selectedAnswer === currentQuestion.correctAnswer ? "rgba(107,207,127,0.15)" : "rgba(245,87,108,0.15)"}`,
                     animation: `${fadeIn} 0.3s ease-out`,
                   }}
                 >
-                  <Box
+                  <Typography
                     sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 1,
+                      fontWeight: 600,
+                      color:
+                        selectedAnswer === currentQuestion.correctAnswer
+                          ? "#6BCF7F"
+                          : "#F5576C",
+                      fontSize: "14px",
                       mb: 1,
                     }}
                   >
-                    <AutoAwesome
-                      sx={{
-                        fontSize: 18,
-                        color:
-                          selectedAnswer === currentQuestion.correctAnswer
-                            ? "#6BCF7F"
-                            : "#F5576C",
-                      }}
-                    />
-                    <Typography
-                      sx={{
-                        fontWeight: 700,
-                        color:
-                          selectedAnswer === currentQuestion.correctAnswer
-                            ? "#6BCF7F"
-                            : "#F5576C",
-                      }}
-                    >
-                      {selectedAnswer === currentQuestion.correctAnswer
-                        ? "Correct!"
-                        : "Incorrect"}
-                    </Typography>
-                  </Box>
+                    {selectedAnswer === currentQuestion.correctAnswer
+                      ? "Correct"
+                      : "Incorrect"}
+                  </Typography>
                   <ReactMarkdown components={markdownComponents}>
                     {currentQuestion.explanation}
                   </ReactMarkdown>
                 </Box>
               )}
 
-              {/* Action Buttons */}
               <Box
                 sx={{
                   display: "flex",
@@ -912,16 +1079,16 @@ export default function Quizzes() {
                     onClick={handleSubmitAnswer}
                     disabled={selectedAnswer === null}
                     sx={{
-                      background: "linear-gradient(135deg, #FFD93D, #FF9B6A)",
-                      color: "#1A122A",
+                      background: "linear-gradient(135deg, #8A54FF, #9F6EFF)",
+                      color: "#fff",
                       px: 4,
                       "&:disabled": {
-                        background: "rgba(255,217,61,0.2)",
+                        background: "rgba(138,84,255,0.15)",
                         color: "rgba(255,255,255,0.3)",
                       },
                     }}
                   >
-                    Submit Answer
+                    Submit
                   </ActionButton>
                 ) : (
                   <ActionButton
@@ -929,14 +1096,14 @@ export default function Quizzes() {
                     endIcon={<NavigateNext />}
                     onClick={handleNextQuestion}
                     sx={{
-                      background: "linear-gradient(135deg, #FFD93D, #FF9B6A)",
-                      color: "#1A122A",
+                      background: "linear-gradient(135deg, #8A54FF, #9F6EFF)",
+                      color: "#fff",
                       px: 4,
                     }}
                   >
                     {currentQuestionIndex + 1 >= questions.length
-                      ? "See Results"
-                      : "Next Question"}
+                      ? "View Results"
+                      : "Next"}
                   </ActionButton>
                 )}
               </Box>
@@ -944,101 +1111,101 @@ export default function Quizzes() {
           </Box>
         )}
 
-        {/* Quiz Completed */}
+        {/* Results */}
         {quizCompleted && (
           <Box sx={{ animation: `${fadeIn} 0.6s ease-out` }}>
             <ResultCard>
-              <EmojiEvents
-                sx={{ fontSize: 80, color: getScoreMessage().color, mb: 2 }}
-              />
               <Typography
-                variant="h3"
-                sx={{ color: "#FFFFFF", fontWeight: 900, mb: 1 }}
+                sx={{
+                  color: "rgba(255,255,255,0.4)",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  textTransform: "uppercase",
+                  letterSpacing: "1px",
+                  mb: 3,
+                }}
+              >
+                Quiz Complete
+              </Typography>
+
+              <Typography
+                variant="h2"
+                sx={{
+                  color: getScoreMessage().color,
+                  fontWeight: 900,
+                  mb: 0.5,
+                  fontSize: { xs: "48px", md: "64px" },
+                }}
+              >
+                {Math.round((score / questions.length) * 100)}%
+              </Typography>
+              <Typography
+                sx={{
+                  color: "#FFFFFF",
+                  fontWeight: 700,
+                  fontSize: "20px",
+                  mb: 0.5,
+                }}
               >
                 {getScoreMessage().text}
               </Typography>
-              <Typography
-                variant="h4"
-                sx={{ color: getScoreMessage().color, fontWeight: 800, mb: 1 }}
-              >
-                {score} / {questions.length}
-              </Typography>
-              <Typography
-                sx={{ color: "rgba(255,255,255,0.6)", mb: 2, fontSize: "18px" }}
-              >
-                You scored {Math.round((score / questions.length) * 100)}%
+              <Typography sx={{ color: "rgba(255,255,255,0.4)", mb: 4 }}>
+                {score} correct out of {questions.length} questions
               </Typography>
 
-              {/* Session Stats */}
-              {totalQuizzesTaken > 1 && (
+              {/* Score Breakdown Bar */}
+              <Box sx={{ maxWidth: "400px", mx: "auto", mb: 4 }}>
                 <Box
                   sx={{
-                    mb: 3,
-                    p: 2,
-                    borderRadius: "12px",
-                    background: "rgba(255,255,255,0.04)",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    display: "inline-block",
+                    display: "flex",
+                    height: "8px",
+                    borderRadius: "4px",
+                    overflow: "hidden",
+                    background: "rgba(255,255,255,0.06)",
+                  }}
+                >
+                  <Box
+                    sx={{
+                      width: `${(score / questions.length) * 100}%`,
+                      background: "#6BCF7F",
+                      transition: "width 1s ease-out",
+                    }}
+                  />
+                  <Box
+                    sx={{
+                      width: `${((questions.length - score) / questions.length) * 100}%`,
+                      background: "rgba(245,87,108,0.4)",
+                    }}
+                  />
+                </Box>
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    mt: 1,
                   }}
                 >
                   <Typography
-                    sx={{ color: "rgba(255,255,255,0.5)", fontSize: "13px" }}
+                    sx={{ color: "rgba(107,207,127,0.8)", fontSize: "12px" }}
                   >
-                    Session total: {allTimeScore.correct}/{allTimeScore.total}{" "}
-                    correct across {totalQuizzesTaken} quizzes (
-                    {Math.round(
-                      (allTimeScore.correct / allTimeScore.total) * 100,
-                    )}
-                    %)
+                    {score} correct
                   </Typography>
-                </Box>
-              )}
-
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "center",
-                  gap: 4,
-                  mb: 4,
-                  flexWrap: "wrap",
-                  mt: 2,
-                }}
-              >
-                <Box sx={{ textAlign: "center" }}>
                   <Typography
-                    variant="h4"
-                    sx={{ color: "#6BCF7F", fontWeight: 800 }}
+                    sx={{ color: "rgba(245,87,108,0.6)", fontSize: "12px" }}
                   >
-                    {score}
-                  </Typography>
-                  <Typography sx={{ color: "rgba(255,255,255,0.5)" }}>
-                    Correct
-                  </Typography>
-                </Box>
-                <Divider
-                  orientation="vertical"
-                  flexItem
-                  sx={{ borderColor: "rgba(255,255,255,0.1)" }}
-                />
-                <Box sx={{ textAlign: "center" }}>
-                  <Typography
-                    variant="h4"
-                    sx={{ color: "#EF4444", fontWeight: 800 }}
-                  >
-                    {questions.length - score}
-                  </Typography>
-                  <Typography sx={{ color: "rgba(255,255,255,0.5)" }}>
-                    Incorrect
+                    {questions.length - score} incorrect
                   </Typography>
                 </Box>
               </Box>
 
+              {/* Actions */}
               <Box
                 sx={{
                   display: "flex",
                   gap: 2,
                   justifyContent: "center",
                   flexWrap: "wrap",
+                  mb: 3,
                 }}
               >
                 <ActionButton
@@ -1047,13 +1214,13 @@ export default function Quizzes() {
                   onClick={handleGenerateMore}
                   disabled={generating}
                   sx={{
-                    background: "linear-gradient(135deg, #FFD93D, #FF9B6A)",
-                    color: "#1A122A",
-                    px: 4,
-                    "&:disabled": { background: "rgba(255,217,61,0.3)" },
+                    background: "linear-gradient(135deg, #8A54FF, #9F6EFF)",
+                    color: "#fff",
+                    px: 3,
+                    "&:disabled": { background: "rgba(138,84,255,0.2)" },
                   }}
                 >
-                  {generating ? "Generating..." : "Generate More Questions"}
+                  {generating ? "Generating..." : "Generate More"}
                 </ActionButton>
                 <ActionButton
                   variant="outlined"
@@ -1066,9 +1233,16 @@ export default function Quizzes() {
                     setSelectedAnswer(null);
                     setShowResult(false);
                   }}
-                  sx={{ borderColor: "rgba(255,217,61,0.4)", color: "#FFD93D" }}
+                  sx={{
+                    borderColor: "rgba(255,255,255,0.15)",
+                    color: "rgba(255,255,255,0.7)",
+                    "&:hover": {
+                      borderColor: "rgba(255,255,255,0.3)",
+                      background: "rgba(255,255,255,0.04)",
+                    },
+                  }}
                 >
-                  Retake Same Quiz
+                  Retake
                 </ActionButton>
                 <ActionButton
                   variant="outlined"
@@ -1078,44 +1252,260 @@ export default function Quizzes() {
                       state: { documentId: selectedDocumentId },
                     })
                   }
-                  sx={{ borderColor: "rgba(245,87,108,0.5)", color: "#F5576C" }}
+                  sx={{
+                    borderColor: "rgba(255,255,255,0.15)",
+                    color: "rgba(255,255,255,0.7)",
+                    "&:hover": {
+                      borderColor: "rgba(255,255,255,0.3)",
+                      background: "rgba(255,255,255,0.04)",
+                    },
+                  }}
                 >
-                  Study Flashcards
+                  Flashcards
                 </ActionButton>
                 <ActionButton
                   variant="outlined"
-                  onClick={handleBackToConfig}
+                  onClick={resetQuiz}
                   sx={{
-                    borderColor: "rgba(255,255,255,0.3)",
+                    borderColor: "rgba(255,255,255,0.15)",
                     color: "rgba(255,255,255,0.7)",
+                    "&:hover": {
+                      borderColor: "rgba(255,255,255,0.3)",
+                      background: "rgba(255,255,255,0.04)",
+                    },
                   }}
                 >
-                  Change Settings
+                  New Quiz
                 </ActionButton>
               </Box>
 
               {generating && (
-                <Box sx={{ mt: 3 }}>
+                <Box sx={{ mb: 3 }}>
                   <LinearProgress
                     sx={{
-                      background: "rgba(255,217,61,0.2)",
+                      background: "rgba(138,84,255,0.1)",
                       "& .MuiLinearProgress-bar": {
-                        background: "linear-gradient(90deg, #FFD93D, #FF9B6A)",
+                        background: "linear-gradient(90deg, #8A54FF, #B88CFF)",
                       },
                     }}
                   />
-                  <Typography
-                    sx={{
-                      color: "rgba(255,255,255,0.4)",
-                      mt: 1,
-                      fontSize: "13px",
-                    }}
-                  >
-                    Generating new questions...
-                  </Typography>
                 </Box>
               )}
+
+              {/* Review Toggle */}
+              <Divider sx={{ borderColor: "rgba(255,255,255,0.06)", my: 2 }} />
+              <ActionButton
+                fullWidth
+                endIcon={showReview ? <ExpandLess /> : <ExpandMore />}
+                onClick={() => setShowReview(!showReview)}
+                sx={{
+                  color: "rgba(255,255,255,0.5)",
+                  py: 1.5,
+                  "&:hover": {
+                    background: "rgba(255,255,255,0.04)",
+                    color: "#FFFFFF",
+                  },
+                }}
+              >
+                {showReview
+                  ? "Hide Review"
+                  : `Review All ${questions.length} Questions`}
+              </ActionButton>
             </ResultCard>
+
+            {/* Full Review */}
+            <Collapse in={showReview}>
+              <Box sx={{ mt: 3 }}>
+                {/* Wrong Answers */}
+                {wrongAnswers.length > 0 && (
+                  <Box sx={{ mb: 4 }}>
+                    <Typography
+                      sx={{
+                        color: "rgba(255,255,255,0.5)",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        textTransform: "uppercase",
+                        letterSpacing: "1px",
+                        mb: 2,
+                      }}
+                    >
+                      Incorrect ({wrongAnswers.length})
+                    </Typography>
+                    {wrongAnswers.map((answer, idx) => {
+                      const q = questions[answer.questionIndex];
+                      if (!q) return null;
+                      return (
+                        <Paper
+                          key={idx}
+                          sx={{
+                            p: 3,
+                            mb: 2,
+                            borderRadius: "14px",
+                            background: "rgba(255,255,255,0.03)",
+                            border: "1px solid rgba(245,87,108,0.12)",
+                            animation: `${fadeIn} 0.3s ease-out ${idx * 0.05}s backwards`,
+                          }}
+                        >
+                          <Typography
+                            sx={{
+                              color: "#FFFFFF",
+                              fontWeight: 600,
+                              mb: 2,
+                              lineHeight: 1.5,
+                              fontSize: "15px",
+                            }}
+                          >
+                            <span
+                              style={{
+                                color: "rgba(255,255,255,0.3)",
+                                marginRight: "8px",
+                              }}
+                            >
+                              {answer.questionIndex + 1}.
+                            </span>
+                            {q.question}
+                          </Typography>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 1,
+                              ml: 2,
+                            }}
+                          >
+                            <Box
+                              sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 1.5,
+                                p: 1.5,
+                                borderRadius: "10px",
+                                background: "rgba(239,68,68,0.06)",
+                                border: "1px solid rgba(239,68,68,0.1)",
+                              }}
+                            >
+                              <Cancel sx={{ fontSize: 16, color: "#EF4444" }} />
+                              <Typography
+                                sx={{
+                                  color: "rgba(239,68,68,0.8)",
+                                  fontSize: "14px",
+                                }}
+                              >
+                                Your answer: {q.options[answer.selectedAnswer]}
+                              </Typography>
+                            </Box>
+                            <Box
+                              sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 1.5,
+                                p: 1.5,
+                                borderRadius: "10px",
+                                background: "rgba(107,207,127,0.06)",
+                                border: "1px solid rgba(107,207,127,0.1)",
+                              }}
+                            >
+                              <CheckCircle
+                                sx={{ fontSize: 16, color: "#6BCF7F" }}
+                              />
+                              <Typography
+                                sx={{
+                                  color: "rgba(107,207,127,0.8)",
+                                  fontSize: "14px",
+                                }}
+                              >
+                                Correct answer: {q.options[q.correctAnswer]}
+                              </Typography>
+                            </Box>
+                            {q.explanation && (
+                              <Box
+                                sx={{
+                                  mt: 1,
+                                  p: 2,
+                                  borderRadius: "10px",
+                                  background: "rgba(255,255,255,0.02)",
+                                }}
+                              >
+                                <ReactMarkdown components={markdownComponents}>
+                                  {q.explanation}
+                                </ReactMarkdown>
+                              </Box>
+                            )}
+                          </Box>
+                        </Paper>
+                      );
+                    })}
+                  </Box>
+                )}
+
+                {/* Correct Answers */}
+                {correctAnswersArr.length > 0 && (
+                  <Box sx={{ mb: 3 }}>
+                    <Typography
+                      sx={{
+                        color: "rgba(255,255,255,0.5)",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        textTransform: "uppercase",
+                        letterSpacing: "1px",
+                        mb: 2,
+                      }}
+                    >
+                      Correct ({correctAnswersArr.length})
+                    </Typography>
+                    {correctAnswersArr.map((answer, idx) => {
+                      const q = questions[answer.questionIndex];
+                      if (!q) return null;
+                      return (
+                        <Paper
+                          key={idx}
+                          sx={{
+                            p: 2.5,
+                            mb: 1.5,
+                            borderRadius: "14px",
+                            background: "rgba(255,255,255,0.02)",
+                            border: "1px solid rgba(255,255,255,0.05)",
+                            animation: `${fadeIn} 0.3s ease-out ${idx * 0.03}s backwards`,
+                          }}
+                        >
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 1.5,
+                            }}
+                          >
+                            <CheckCircle
+                              sx={{
+                                fontSize: 16,
+                                color: "rgba(107,207,127,0.5)",
+                              }}
+                            />
+                            <Typography
+                              sx={{
+                                color: "rgba(255,255,255,0.6)",
+                                fontSize: "14px",
+                                lineHeight: 1.5,
+                              }}
+                            >
+                              <span
+                                style={{
+                                  color: "rgba(255,255,255,0.25)",
+                                  marginRight: "6px",
+                                }}
+                              >
+                                {answer.questionIndex + 1}.
+                              </span>
+                              {q.question}
+                            </Typography>
+                          </Box>
+                        </Paper>
+                      );
+                    })}
+                  </Box>
+                )}
+              </Box>
+            </Collapse>
           </Box>
         )}
       </Container>
