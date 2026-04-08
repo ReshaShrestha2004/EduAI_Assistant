@@ -290,7 +290,7 @@ export default function StudyRecommendations() {
               }}
             >
               <Grid container spacing={3} alignItems="center">
-                <Grid item xs={12} md={4}>
+                <Grid size={{ xs: 12, md: 4 }}>
                   <Box sx={{ textAlign: { xs: "center", md: "left" } }}>
                     <Typography
                       sx={{
@@ -336,7 +336,7 @@ export default function StudyRecommendations() {
                     />
                   </Box>
                 </Grid>
-                <Grid item xs={12} md={8}>
+                <Grid size={{ xs: 12, md: 8 }}>
                   <Typography
                     sx={{
                       color: "rgba(255,255,255,0.5)",
@@ -737,7 +737,7 @@ export default function StudyRecommendations() {
                 Next Steps
               </Typography>
               <Grid container spacing={2}>
-                <Grid item xs={12} sm={6} md={3}>
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                   <ActionButton
                     fullWidth
                     variant="outlined"
@@ -769,7 +769,7 @@ export default function StudyRecommendations() {
                     </Typography>
                   </ActionButton>
                 </Grid>
-                <Grid item xs={12} sm={6} md={3}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <ActionButton
                     fullWidth
                     variant="outlined"
@@ -801,7 +801,7 @@ export default function StudyRecommendations() {
                     </Typography>
                   </ActionButton>
                 </Grid>
-                <Grid item xs={12} sm={6} md={3}>
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                   <ActionButton
                     fullWidth
                     variant="outlined"
@@ -833,7 +833,7 @@ export default function StudyRecommendations() {
                     </Typography>
                   </ActionButton>
                 </Grid>
-                <Grid item xs={12} sm={6} md={3}>
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                   <ActionButton
                     fullWidth
                     variant="outlined"

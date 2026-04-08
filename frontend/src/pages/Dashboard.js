@@ -19,6 +19,7 @@ import {
   Tooltip,
   TextField,
   Checkbox,
+  Collapse,
 } from "@mui/material";
 import {
   AutoStories,
@@ -40,6 +41,10 @@ import {
   CheckCircle,
   Close,
   Edit,
+  History,
+  ExpandMore,
+  ExpandLess,
+  Cancel,
 } from "@mui/icons-material";
 import { styled, keyframes } from "@mui/material/styles";
 import logo from "../assets/logo.png";
@@ -339,25 +344,46 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [todayCount, setTodayCount] = useState(0);
 
-  // Daily goals state
+  // Daily goals state with history
   const [goals, setGoals] = useState(() => {
     try {
       const saved = localStorage.getItem("eduai_goals");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        // Reset done status if it's a new day
-        const lastDate = localStorage.getItem("eduai_goals_date");
-        const today = new Date().toISOString().split("T")[0];
-        if (lastDate !== today) {
-          return parsed.map((g) => ({ ...g, done: false }));
-        }
-        return parsed;
+      const lastDate = localStorage.getItem("eduai_goals_date");
+      const today = new Date().toISOString().split("T")[0];
+
+      if (saved && lastDate === today) {
+        return JSON.parse(saved);
       }
-    } catch (e) {}
-    return DEFAULT_GOALS;
+
+      // It's a new day — archive yesterday's goals before resetting
+      if (saved && lastDate && lastDate !== today) {
+        const oldGoals = JSON.parse(saved);
+        const historyRaw = localStorage.getItem("eduai_goals_history");
+        const history = historyRaw ? JSON.parse(historyRaw) : [];
+        history.push({ date: lastDate, goals: oldGoals });
+        // Keep only last 7 days of history
+        if (history.length > 7) history.shift();
+        localStorage.setItem("eduai_goals_history", JSON.stringify(history));
+        // Reset done status for new day, keep the same goal texts
+        return oldGoals.map((g) => ({ ...g, done: false }));
+      }
+
+      return DEFAULT_GOALS;
+    } catch (e) {
+      return DEFAULT_GOALS;
+    }
   });
   const [newGoalText, setNewGoalText] = useState("");
   const [addingGoal, setAddingGoal] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [goalHistory, setGoalHistory] = useState(() => {
+    try {
+      const h = localStorage.getItem("eduai_goals_history");
+      return h ? JSON.parse(h) : [];
+    } catch {
+      return [];
+    }
+  });
 
   // Save goals
   useEffect(() => {
@@ -679,7 +705,7 @@ export default function Dashboard() {
                 delay: "0.5s",
               },
             ].map((s, i) => (
-              <Grid item xs={12} sm={6} md={3} key={i}>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                 <StatsCard
                   sx={{
                     animation: `${fadeIn} 0.6s ease-out ${s.delay} backwards`,
@@ -737,7 +763,7 @@ export default function Dashboard() {
             sx={{ mb: 6, animation: `${fadeIn} 0.6s ease-out 0.55s backwards` }}
           >
             {/* Daily Goals (Trello style) */}
-            <Grid item xs={12} md={5}>
+            <Grid size={{ xs: 12, md: 5 }}>
               <Paper
                 sx={{
                   p: 0,
@@ -771,15 +797,33 @@ export default function Dashboard() {
                     >
                       Today's Goals
                     </Typography>
-                    <Typography
-                      sx={{
-                        color: goalProgress === 100 ? "#6BCF7F" : "#B88CFF",
-                        fontWeight: 800,
-                        fontSize: "18px",
-                      }}
-                    >
-                      {completedGoals}/{goals.length}
-                    </Typography>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      {goalHistory.length > 0 && (
+                        <Tooltip title="View past goals" arrow>
+                          <IconButton
+                            size="small"
+                            onClick={() => setShowHistory(!showHistory)}
+                            sx={{
+                              color: showHistory
+                                ? "#B88CFF"
+                                : "rgba(255,255,255,0.3)",
+                              "&:hover": { color: "#B88CFF" },
+                            }}
+                          >
+                            <History sx={{ fontSize: 18 }} />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                      <Typography
+                        sx={{
+                          color: goalProgress === 100 ? "#6BCF7F" : "#B88CFF",
+                          fontWeight: 800,
+                          fontSize: "18px",
+                        }}
+                      >
+                        {completedGoals}/{goals.length}
+                      </Typography>
+                    </Box>
                   </Box>
                   {/* Progress bar */}
                   <Box
@@ -995,11 +1039,162 @@ export default function Dashboard() {
                     </Button>
                   )}
                 </Box>
+
+                {/* Goal History Panel */}
+                <Collapse in={showHistory}>
+                  <Box
+                    sx={{
+                      px: 2,
+                      pb: 2,
+                      borderTop: "1px solid rgba(255,255,255,0.05)",
+                    }}
+                  >
+                    <Typography
+                      sx={{
+                        color: "rgba(255,255,255,0.4)",
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.5px",
+                        pt: 1.5,
+                        pb: 1,
+                      }}
+                    >
+                      Past Goals
+                    </Typography>
+                    <Box
+                      sx={{
+                        maxHeight: "200px",
+                        overflowY: "auto",
+                        "&::-webkit-scrollbar": { width: "4px" },
+                        "&::-webkit-scrollbar-thumb": {
+                          background: "rgba(255,255,255,0.1)",
+                          borderRadius: "2px",
+                        },
+                      }}
+                    >
+                      {goalHistory
+                        .slice()
+                        .reverse()
+                        .map((day, dIdx) => {
+                          const completed = day.goals.filter(
+                            (g) => g.done,
+                          ).length;
+                          const total = day.goals.length;
+                          const dayDate = new Date(day.date);
+                          const dateLabel = dayDate.toLocaleDateString(
+                            "en-US",
+                            {
+                              weekday: "short",
+                              month: "short",
+                              day: "numeric",
+                            },
+                          );
+                          return (
+                            <Box
+                              key={dIdx}
+                              sx={{
+                                mb: 1.5,
+                                p: 1.5,
+                                borderRadius: "10px",
+                                background: "rgba(255,255,255,0.02)",
+                                border: "1px solid rgba(255,255,255,0.04)",
+                              }}
+                            >
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "space-between",
+                                  mb: 1,
+                                }}
+                              >
+                                <Typography
+                                  sx={{
+                                    color: "rgba(255,255,255,0.6)",
+                                    fontSize: "13px",
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  {dateLabel}
+                                </Typography>
+                                <Chip
+                                  label={`${completed}/${total}`}
+                                  size="small"
+                                  sx={{
+                                    height: "20px",
+                                    fontSize: "11px",
+                                    fontWeight: 700,
+                                    background:
+                                      completed === total
+                                        ? "rgba(107,207,127,0.12)"
+                                        : "rgba(255,255,255,0.06)",
+                                    color:
+                                      completed === total
+                                        ? "#6BCF7F"
+                                        : "rgba(255,255,255,0.4)",
+                                  }}
+                                />
+                              </Box>
+                              {day.goals.map((g, gIdx) => (
+                                <Box
+                                  key={gIdx}
+                                  sx={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 1,
+                                    py: 0.3,
+                                  }}
+                                >
+                                  {g.done ? (
+                                    <CheckCircle
+                                      sx={{ fontSize: 12, color: "#6BCF7F" }}
+                                    />
+                                  ) : (
+                                    <Cancel
+                                      sx={{
+                                        fontSize: 12,
+                                        color: "rgba(245,87,108,0.5)",
+                                      }}
+                                    />
+                                  )}
+                                  <Typography
+                                    sx={{
+                                      fontSize: "12px",
+                                      lineHeight: 1.4,
+                                      color: g.done
+                                        ? "rgba(255,255,255,0.4)"
+                                        : "rgba(255,255,255,0.3)",
+                                      textDecoration: g.done ? "none" : "none",
+                                    }}
+                                  >
+                                    {g.text}
+                                  </Typography>
+                                </Box>
+                              ))}
+                            </Box>
+                          );
+                        })}
+                      {goalHistory.length === 0 && (
+                        <Typography
+                          sx={{
+                            color: "rgba(255,255,255,0.25)",
+                            fontSize: "12px",
+                            textAlign: "center",
+                            py: 2,
+                          }}
+                        >
+                          No past goals yet
+                        </Typography>
+                      )}
+                    </Box>
+                  </Box>
+                </Collapse>
               </Paper>
             </Grid>
 
             {/* Weekly Activity */}
-            <Grid item xs={12} md={7}>
+            <Grid size={{ xs: 12, md: 7 }}>
               <Paper
                 sx={{
                   p: 0,
@@ -1109,7 +1304,7 @@ export default function Dashboard() {
         </Box>
         <Grid container spacing={3} sx={{ mb: 6 }}>
           {features.map((feature, index) => (
-            <Grid item xs={12} sm={6} md={6} lg={6} xl={6} key={feature.id}>
+            <Grid size={{ xs: 12, sm: 6, md: 6 }} key={feature.id}>
               <FeatureCard
                 bgcolor={feature.bgColor}
                 hoverbg={feature.hoverBg}

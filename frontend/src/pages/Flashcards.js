@@ -532,7 +532,7 @@ export default function Flashcards() {
                   />
                   {modelUsed && (
                     <Chip
-                      label={modelUsed.includes("groq") ? "Groq AI" : "FLAN-T5"}
+                      label={modelUsed.includes("groq") ? "Groq AI" : "Local"}
                       size="small"
                       sx={{
                         background: "rgba(255,255,255,0.06)",
