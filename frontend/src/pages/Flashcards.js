@@ -244,7 +244,7 @@ export default function Flashcards() {
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
             <IconButton
               onClick={() => navigate("/dashboard")}
-              sx={{ color: "#F5576C" }}
+              sx={{ color: "#f088c7" }}
             >
               <ArrowBack />
             </IconButton>
