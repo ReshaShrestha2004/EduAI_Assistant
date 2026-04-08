@@ -1,29 +1,35 @@
 // frontend/src/App.js
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
-import { createTheme, ThemeProvider, CssBaseline } from '@mui/material';
+import React from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+import { AuthProvider } from "./context/AuthContext";
+import { createTheme, ThemeProvider, CssBaseline } from "@mui/material";
 
-import LandingPage from './pages/LandingPage';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import Dashboard from './pages/Dashboard';
-import AdminDashboard from './pages/AdminDashboard';
-import UploadDocument from './pages/UploadDocuments';
-import Summaries from './pages/Summaries';
-import MyDocuments from './pages/MyDocuments';
-import Flashcards from './pages/Flashcards';
-import QAAssistant from './pages/QAAssistant';
-import Quizzes from './pages/Quizzes';
-import ProtectedRoute from './components/ProtectedRoute';
+import LandingPage from "./pages/LandingPage";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import Dashboard from "./pages/Dashboard";
+import AdminDashboard from "./pages/AdminDashboard";
+import UploadDocument from "./pages/UploadDocuments";
+import Summaries from "./pages/Summaries";
+import MyDocuments from "./pages/MyDocuments";
+import Flashcards from "./pages/Flashcards";
+import QAAssistant from "./pages/QAAssistant";
+import Quizzes from "./pages/Quizzes";
+import ProtectedRoute from "./components/ProtectedRoute";
+import StudyRecommendations from "./pages/StudyRecommendations";
 
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#8A54FF',
+      main: "#8A54FF",
     },
     secondary: {
-      main: '#9F6EFF',
+      main: "#9F6EFF",
     },
   },
   typography: {
@@ -49,7 +55,7 @@ function App() {
                 </ProtectedRoute>
               }
             />
-             <Route
+            <Route
               path="/upload"
               element={
                 <ProtectedRoute>
@@ -97,6 +103,7 @@ function App() {
                 </ProtectedRoute>
               }
             />
+            <Route path="/recommendations" element={<StudyRecommendations />} />
             <Route
               path="/admin"
               element={

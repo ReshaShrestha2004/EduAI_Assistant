@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, status, Depends, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Optional
 from pydantic import BaseModel
+from fastapi import Request
 import mysql.connector
 
 from ..utils.auth import decode_access_token
@@ -252,3 +253,38 @@ async def generate_document_mcqs(
         raise HTTPException(status_code=404, detail="PDF file not found on server")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"MCQ generation failed: {str(e)}")
+    
+
+
+@router.post("/documents/{document_id}/recommendations")
+async def generate_study_recommendations(
+    document_id: int,
+    request: Request,
+    user_id: int = Depends(get_current_user_id)
+):
+    """Generate study recommendations based on quiz results"""
+    try:
+        body = await request.json()
+        wrong_answers = body.get("wrong_answers", [])
+        all_questions = body.get("all_questions", [])
+        prefer = body.get("prefer", "local")
+
+        file_path = get_document_path(document_id, user_id)
+
+        from ..services.recommendation_service import generate_recommendations
+        result = generate_recommendations(
+            file_path=file_path,
+            wrong_answers=wrong_answers,
+            all_questions=all_questions,
+            prefer=prefer
+        )
+
+        log_activity(user_id, "quiz", "Generated study recommendations",
+                     f"Analyzed {len(wrong_answers)} incorrect answers", document_id)
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

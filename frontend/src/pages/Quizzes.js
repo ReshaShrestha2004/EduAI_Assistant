@@ -23,6 +23,7 @@ import {
   ToggleButtonGroup,
   Collapse,
 } from "@mui/material";
+import Lightbulb from "@mui/icons-material/Lightbulb";
 import {
   ArrowBack,
   CloudUpload,
@@ -1276,6 +1277,45 @@ export default function Quizzes() {
                   }}
                 >
                   New Quiz
+                </ActionButton>
+                <ActionButton
+                  variant="contained"
+                  startIcon={<Lightbulb />}
+                  onClick={() =>
+                    navigate("/recommendations", {
+                      state: {
+                        documentId: selectedDocumentId,
+                        wrongAnswers: answers
+                          .filter((a) => !a.isCorrect)
+                          .map((a) => ({
+                            questionIndex: a.questionIndex,
+                            question: questions[a.questionIndex]?.question,
+                            correctAnswer:
+                              questions[a.questionIndex]?.options[
+                                questions[a.questionIndex]?.correctAnswer
+                              ],
+                            userAnswer:
+                              questions[a.questionIndex]?.options[
+                                a.selectedAnswer
+                              ],
+                            explanation:
+                              questions[a.questionIndex]?.explanation,
+                            difficulty: questions[a.questionIndex]?.difficulty,
+                          })),
+                        allQuestions: questions,
+                        aiMode: aiMode,
+                      },
+                    })
+                  }
+                  disabled={answers.filter((a) => !a.isCorrect).length === 0}
+                  sx={{
+                    background: "linear-gradient(135deg, #8A54FF, #9F6EFF)",
+                    color: "#fff",
+                    px: 3,
+                    "&:disabled": { background: "rgba(138,84,255,0.2)" },
+                  }}
+                >
+                  Study Recommendations
                 </ActionButton>
               </Box>
 
