@@ -22,7 +22,7 @@ import QAAssistant from "./pages/QAAssistant";
 import Quizzes from "./pages/Quizzes";
 import ProtectedRoute from "./components/ProtectedRoute";
 import StudyRecommendations from "./pages/StudyRecommendations";
-
+import StudyTimer from "./components/StudyTimer";
 const theme = createTheme({
   palette: {
     primary: {
@@ -113,6 +113,7 @@ function App() {
               }
             />
           </Routes>
+          <StudyTimer />
         </AuthProvider>
       </Router>
     </ThemeProvider>
