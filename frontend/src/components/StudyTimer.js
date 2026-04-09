@@ -1,101 +1,69 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Box,
   Typography,
   IconButton,
-  Tooltip,
   Paper,
   Collapse,
+  Tooltip,
 } from "@mui/material";
 import {
-  Timer,
   PlayArrow,
   Pause,
   Stop,
   Coffee,
   MenuBook,
-  Close,
   ExpandLess,
+  Timer,
 } from "@mui/icons-material";
-import { styled, keyframes } from "@mui/material/styles";
 
-const pulse = keyframes`
-  0%, 100% { box-shadow: 0 4px 20px rgba(138,84,255,0.3); }
-  50% { box-shadow: 0 4px 30px rgba(138,84,255,0.5); }
-`;
-
-const breathe = keyframes`
-  0%, 100% { opacity: 0.4; }
-  50% { opacity: 1; }
-`;
-
-const STUDY_TIME = 45 * 60; // 45 minutes in seconds
-const BREAK_TIME = 5 * 60; // 5 minutes in seconds
+const STUDY_TIME = 45 * 60;
+const BREAK_TIME = 5 * 60;
 
 export default function StudyTimer() {
   const [isOpen, setIsOpen] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [timeLeft, setTimeLeft] = useState(STUDY_TIME);
-  const [mode, setMode] = useState("study"); // 'study' or 'break'
-  const [sessionsCompleted, setSessionsCompleted] = useState(() => {
+  const [mode, setMode] = useState("study");
+  const [sessions, setSessions] = useState(() => {
     try {
-      const saved = localStorage.getItem("eduai_pomodoro_sessions");
-      const date = localStorage.getItem("eduai_pomodoro_date");
-      const today = new Date().toISOString().split("T")[0];
-      if (date === today && saved) return parseInt(saved);
+      const s = localStorage.getItem("eduai_pomo_s");
+      const d = localStorage.getItem("eduai_pomo_d");
+      if (d === new Date().toISOString().split("T")[0] && s) return parseInt(s);
       return 0;
     } catch {
       return 0;
     }
   });
   const intervalRef = useRef(null);
-  const audioRef = useRef(null);
 
-  // Save sessions count
   useEffect(() => {
-    localStorage.setItem("eduai_pomodoro_sessions", String(sessionsCompleted));
+    localStorage.setItem("eduai_pomo_s", String(sessions));
     localStorage.setItem(
-      "eduai_pomodoro_date",
+      "eduai_pomo_d",
       new Date().toISOString().split("T")[0],
     );
-  }, [sessionsCompleted]);
+  }, [sessions]);
 
-  // Timer logic
   useEffect(() => {
     if (isRunning && timeLeft > 0) {
-      intervalRef.current = setInterval(() => {
-        setTimeLeft((prev) => prev - 1);
-      }, 1000);
+      intervalRef.current = setInterval(() => setTimeLeft((p) => p - 1), 1000);
     } else if (timeLeft === 0) {
-      // Timer finished
       clearInterval(intervalRef.current);
       setIsRunning(false);
-
-      // Play notification sound
       try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.frequency.value = mode === "study" ? 800 : 600;
-        gain.gain.value = 0.15;
-        osc.start();
-        osc.stop(ctx.currentTime + 0.3);
-        setTimeout(() => {
-          const osc2 = ctx.createOscillator();
-          const gain2 = ctx.createGain();
-          osc2.connect(gain2);
-          gain2.connect(ctx.destination);
-          osc2.frequency.value = mode === "study" ? 1000 : 800;
-          gain2.gain.value = 0.15;
-          osc2.start();
-          osc2.stop(ctx.currentTime + 0.4);
-        }, 350);
-      } catch (e) {}
-
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.connect(g);
+        g.connect(ctx.destination);
+        o.frequency.value = 880;
+        g.gain.value = 0.2;
+        o.start();
+        o.stop(ctx.currentTime + 0.3);
+      } catch {}
       if (mode === "study") {
-        setSessionsCompleted((prev) => prev + 1);
+        setSessions((p) => p + 1);
         setMode("break");
         setTimeLeft(BREAK_TIME);
       } else {
@@ -103,316 +71,284 @@ export default function StudyTimer() {
         setTimeLeft(STUDY_TIME);
       }
     }
-
     return () => clearInterval(intervalRef.current);
   }, [isRunning, timeLeft, mode]);
 
-  const toggleTimer = () => {
+  const toggle = () => {
     setIsRunning(!isRunning);
     if (!isOpen) setIsOpen(true);
   };
-
-  const stopTimer = () => {
+  const stop = () => {
     setIsRunning(false);
     setMode("study");
     setTimeLeft(STUDY_TIME);
     clearInterval(intervalRef.current);
   };
-
-  const formatTime = (seconds) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
-  };
-
-  const progress =
+  const fmt = (s) =>
+    `${Math.floor(s / 60)
+      .toString()
+      .padStart(2, "0")}:${(s % 60).toString().padStart(2, "0")}`;
+  const pct =
     mode === "study"
       ? ((STUDY_TIME - timeLeft) / STUDY_TIME) * 100
       : ((BREAK_TIME - timeLeft) / BREAK_TIME) * 100;
-
-  const totalTime = mode === "study" ? STUDY_TIME : BREAK_TIME;
+  const accent = mode === "study" ? "#8A54FF" : "#22C55E";
 
   return (
-    <Box
-      sx={{
-        position: "fixed",
-        bottom: 24,
-        right: 24,
-        zIndex: 9999,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "flex-end",
-        gap: 1.5,
-      }}
-    >
-      {/* Expanded Timer Panel */}
-      <Collapse in={isOpen} unmountOnExit>
-        <Paper
-          sx={{
-            width: 240,
+    <>
+      {/* PANEL */}
+      {isOpen && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: "90px",
+            right: "24px",
+            zIndex: 999999,
+            width: "260px",
             borderRadius: "20px",
-            background: "rgba(15, 11, 26, 0.95)",
-            backdropFilter: "blur(24px)",
-            border: "1px solid rgba(138,84,255,0.2)",
             overflow: "hidden",
-            boxShadow: "0 12px 40px rgba(0,0,0,0.5)",
+            background: "#1A122A",
+            border: `2px solid ${accent}`,
+            boxShadow: `0 20px 60px rgba(0,0,0,0.7), 0 0 30px ${accent}44`,
           }}
         >
-          {/* Header */}
-          <Box
-            sx={{
-              px: 2,
-              py: 1.5,
+          {/* Panel Header */}
+          <div
+            style={{
+              padding: "14px 18px",
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              borderBottom: "1px solid rgba(255,255,255,0.06)",
+              borderBottom: "1px solid rgba(255,255,255,0.1)",
             }}
           >
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               {mode === "study" ? (
-                <MenuBook sx={{ fontSize: 16, color: "#8A54FF" }} />
+                <MenuBook style={{ fontSize: "18px", color: accent }} />
               ) : (
-                <Coffee sx={{ fontSize: 16, color: "#6BCF7F" }} />
+                <Coffee style={{ fontSize: "18px", color: accent }} />
               )}
-              <Typography
-                sx={{
-                  color: mode === "study" ? "#B88CFF" : "#6BCF7F",
-                  fontSize: "12px",
+              <span
+                style={{
+                  color: accent,
+                  fontSize: "13px",
                   fontWeight: 700,
                   textTransform: "uppercase",
                   letterSpacing: "0.5px",
                 }}
               >
                 {mode === "study" ? "Study Time" : "Break Time"}
-              </Typography>
-            </Box>
-            <IconButton
-              size="small"
+              </span>
+            </div>
+            <div
               onClick={() => setIsOpen(false)}
-              sx={{
-                color: "rgba(255,255,255,0.3)",
-                p: 0.3,
-                "&:hover": { color: "#FFFFFF" },
+              style={{
+                cursor: "pointer",
+                color: "rgba(255,255,255,0.4)",
+                padding: "4px",
               }}
             >
-              <ExpandLess sx={{ fontSize: 18 }} />
-            </IconButton>
-          </Box>
+              <ExpandLess style={{ fontSize: "20px" }} />
+            </div>
+          </div>
 
-          {/* Timer Display */}
-          <Box sx={{ px: 2, py: 3, textAlign: "center" }}>
-            {/* Circular progress */}
-            <Box
-              sx={{
+          {/* Timer Circle */}
+          <div style={{ padding: "28px 24px", textAlign: "center" }}>
+            <div
+              style={{
                 position: "relative",
-                width: 120,
-                height: 120,
-                mx: "auto",
-                mb: 2,
+                width: "140px",
+                height: "140px",
+                margin: "0 auto 20px",
               }}
             >
               <svg
-                width="120"
-                height="120"
+                width="140"
+                height="140"
                 style={{ transform: "rotate(-90deg)" }}
               >
                 <circle
-                  cx="60"
-                  cy="60"
-                  r="52"
+                  cx="70"
+                  cy="70"
+                  r="60"
                   fill="none"
-                  stroke="rgba(255,255,255,0.06)"
-                  strokeWidth="6"
+                  stroke="rgba(255,255,255,0.08)"
+                  strokeWidth="7"
                 />
                 <circle
-                  cx="60"
-                  cy="60"
-                  r="52"
+                  cx="70"
+                  cy="70"
+                  r="60"
                   fill="none"
-                  stroke={mode === "study" ? "#8A54FF" : "#6BCF7F"}
-                  strokeWidth="6"
+                  stroke={accent}
+                  strokeWidth="7"
                   strokeLinecap="round"
-                  strokeDasharray={`${2 * Math.PI * 52}`}
-                  strokeDashoffset={`${2 * Math.PI * 52 * (1 - progress / 100)}`}
+                  strokeDasharray={`${2 * Math.PI * 60}`}
+                  strokeDashoffset={`${2 * Math.PI * 60 * (1 - pct / 100)}`}
                   style={{ transition: "stroke-dashoffset 1s linear" }}
                 />
               </svg>
-              <Box
-                sx={{
+              <div
+                style={{
                   position: "absolute",
-                  inset: 0,
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   flexDirection: "column",
                 }}
               >
-                <Typography
-                  sx={{
+                <span
+                  style={{
                     color: "#FFFFFF",
-                    fontWeight: 800,
-                    fontSize: "28px",
-                    lineHeight: 1,
-                    fontVariantNumeric: "tabular-nums",
+                    fontWeight: 900,
+                    fontSize: "34px",
+                    fontFamily: "monospace",
                   }}
                 >
-                  {formatTime(timeLeft)}
-                </Typography>
-                <Typography
-                  sx={{
-                    color: "rgba(255,255,255,0.3)",
-                    fontSize: "10px",
-                    mt: 0.5,
+                  {fmt(timeLeft)}
+                </span>
+                <span
+                  style={{
+                    color: "rgba(255,255,255,0.35)",
+                    fontSize: "11px",
+                    marginTop: "4px",
                   }}
                 >
                   {mode === "study" ? "45 min session" : "5 min break"}
-                </Typography>
-              </Box>
-            </Box>
+                </span>
+              </div>
+            </div>
 
             {/* Controls */}
-            <Box
-              sx={{
+            <div
+              style={{
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                gap: 1.5,
+                gap: "16px",
               }}
             >
-              <Tooltip title="Reset" arrow>
-                <IconButton
-                  onClick={stopTimer}
-                  size="small"
-                  sx={{
-                    color: "rgba(255,255,255,0.3)",
-                    width: 36,
-                    height: 36,
-                    "&:hover": {
-                      color: "#EF4444",
-                      background: "rgba(239,68,68,0.1)",
-                    },
-                  }}
-                >
-                  <Stop sx={{ fontSize: 18 }} />
-                </IconButton>
-              </Tooltip>
-              <IconButton
-                onClick={toggleTimer}
-                sx={{
-                  width: 48,
-                  height: 48,
-                  background: isRunning
-                    ? "rgba(255,255,255,0.08)"
-                    : mode === "study"
-                      ? "linear-gradient(135deg, #8A54FF, #9F6EFF)"
-                      : "linear-gradient(135deg, #6BCF7F, #4ECDC4)",
-                  color: "#FFFFFF",
-                  "&:hover": {
-                    background: isRunning
-                      ? "rgba(255,255,255,0.12)"
-                      : mode === "study"
-                        ? "linear-gradient(135deg, #9F6EFF, #B88CFF)"
-                        : "linear-gradient(135deg, #7DE5DD, #6BCF7F)",
-                  },
-                }}
-              >
-                {isRunning ? (
-                  <Pause sx={{ fontSize: 22 }} />
-                ) : (
-                  <PlayArrow sx={{ fontSize: 22 }} />
-                )}
-              </IconButton>
-              <Box
-                sx={{
-                  width: 36,
-                  height: 36,
+              <div
+                onClick={stop}
+                style={{
+                  width: "40px",
+                  height: "40px",
+                  borderRadius: "50%",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
+                  cursor: "pointer",
+                  color: "rgba(255,255,255,0.4)",
+                  background: "rgba(255,255,255,0.05)",
                 }}
               >
-                <Typography
-                  sx={{
-                    color: "rgba(255,255,255,0.3)",
-                    fontSize: "11px",
-                    textAlign: "center",
-                    lineHeight: 1.2,
+                <Stop style={{ fontSize: "20px" }} />
+              </div>
+              <div
+                onClick={toggle}
+                style={{
+                  width: "56px",
+                  height: "56px",
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  color: "#FFFFFF",
+                  background: accent,
+                  boxShadow: `0 4px 20px ${accent}88`,
+                }}
+              >
+                {isRunning ? (
+                  <Pause style={{ fontSize: "28px" }} />
+                ) : (
+                  <PlayArrow style={{ fontSize: "28px" }} />
+                )}
+              </div>
+              <div style={{ width: "40px", textAlign: "center" }}>
+                <div
+                  style={{
+                    color: "#FFFFFF",
+                    fontWeight: 800,
+                    fontSize: "16px",
                   }}
                 >
-                  {sessionsCompleted}
-                  <br />
-                  <span style={{ fontSize: "9px" }}>done</span>
-                </Typography>
-              </Box>
-            </Box>
-          </Box>
-        </Paper>
-      </Collapse>
+                  {sessions}
+                </div>
+                <div
+                  style={{ color: "rgba(255,255,255,0.3)", fontSize: "10px" }}
+                >
+                  done
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
-      {/* Floating Button */}
-      <Tooltip
-        title={
-          isOpen
-            ? ""
-            : isRunning
-              ? `${formatTime(timeLeft)} remaining`
-              : "Study Timer"
-        }
-        arrow
-        placement="left"
+      {/* FLOATING BUTTON — using raw div with inline styles for guaranteed visibility */}
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        style={{
+          position: "fixed",
+          bottom: "24px",
+          right: "24px",
+          zIndex: 999999,
+          display: "flex",
+          alignItems: "center",
+          gap: "10px",
+          padding: "14px 28px",
+          borderRadius: "60px",
+          cursor: "pointer",
+          background: accent,
+          color: "#FFFFFF",
+          boxShadow: `0 0 0 5px ${accent}44, 0 8px 40px ${accent}88`,
+          transition: "all 0.3s ease",
+          userSelect: "none",
+          minWidth: "175px",
+          justifyContent: "center",
+          fontFamily: "Inter, Roboto, sans-serif",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = "scale(1.08) translateY(-3px)";
+          e.currentTarget.style.boxShadow = `0 0 0 8px ${accent}55, 0 14px 50px ${accent}AA`;
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = "scale(1)";
+          e.currentTarget.style.boxShadow = `0 0 0 5px ${accent}44, 0 8px 40px ${accent}88`;
+        }}
       >
-        <IconButton
-          onClick={() => setIsOpen(!isOpen)}
-          sx={{
-            width: 56,
-            height: 56,
-            background: isRunning
-              ? mode === "study"
-                ? "linear-gradient(135deg, #8A54FF, #9F6EFF)"
-                : "linear-gradient(135deg, #6BCF7F, #4ECDC4)"
-              : "rgba(15, 11, 26, 0.9)",
-            backdropFilter: "blur(20px)",
-            border: isRunning ? "none" : "1px solid rgba(138,84,255,0.25)",
-            color: "#FFFFFF",
-            boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
-            animation: isRunning ? `${pulse} 3s ease-in-out infinite` : "none",
-            transition: "all 0.3s ease",
-            "&:hover": {
-              background: isRunning
-                ? mode === "study"
-                  ? "linear-gradient(135deg, #9F6EFF, #B88CFF)"
-                  : "linear-gradient(135deg, #7DE5DD, #6BCF7F)"
-                : "rgba(138,84,255,0.15)",
-              transform: "scale(1.05)",
-            },
-          }}
-        >
-          {isRunning ? (
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                position: "relative",
+        {isRunning ? (
+          <>
+            {mode === "study" ? (
+              <MenuBook style={{ fontSize: "22px" }} />
+            ) : (
+              <Coffee style={{ fontSize: "22px" }} />
+            )}
+            <span
+              style={{
+                fontSize: "19px",
+                fontWeight: 900,
+                letterSpacing: "1.5px",
+                fontFamily: "monospace",
               }}
             >
-              <Typography
-                sx={{
-                  fontSize: "13px",
-                  fontWeight: 800,
-                  fontVariantNumeric: "tabular-nums",
-                }}
-              >
-                {Math.floor(timeLeft / 60)}:
-                {(timeLeft % 60).toString().padStart(2, "0")}
-              </Typography>
-            </Box>
-          ) : (
-            <Timer sx={{ fontSize: 24 }} />
-          )}
-        </IconButton>
-      </Tooltip>
-    </Box>
+              {fmt(timeLeft)}
+            </span>
+          </>
+        ) : (
+          <>
+            <Timer style={{ fontSize: "22px" }} />
+            <span style={{ fontSize: "16px", fontWeight: 800 }}>
+              Study Timer
+            </span>
+          </>
+        )}
+      </div>
+    </>
   );
 }
