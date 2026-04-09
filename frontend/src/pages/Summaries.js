@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import { useAuth } from "../context/AuthContext";
+import DocumentInsights from "../components/DocumentInsights";
 import api from "../services/api";
 import {
   Box,
@@ -344,6 +345,7 @@ export default function Summaries() {
                         color: "#6BCF7F",
                       }}
                     />
+                    <DocumentInsights documentId={selectedDocumentId} />
                   </Box>
                 </Box>
               )}
@@ -623,7 +625,18 @@ export default function Summaries() {
                   ),
                 }}
               >
-                {summary}
+                {summary
+                  .replace(/([^\n])(#{1,4}\s)/g, "$1\n\n$2")
+                  .replace(/\*\*([^*\n]+)\n\*\s*\n/g, "**$1**\n")
+                  .replace(/\*\*([^*\n]+)\n\*/g, "**$1**")
+                  .replace(/\*\*([^*\n]+)$/gm, "**$1**")
+                  .replace(/\n\*\s*$/gm, "")
+                  .replace(/\n\*\s*\n/g, "\n")
+                  .replace(/1\.\s*\*/g, "* ")
+                  .replace(/\d+\.\s*\*/g, "* ")
+                  .replace(/([^\n])(\*\s)/g, "$1\n$2")
+                  .replace(/\n{3,}/g, "\n\n")
+                  .trim()}
               </ReactMarkdown>
             </Paper>
             <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>

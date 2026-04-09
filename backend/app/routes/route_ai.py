@@ -254,7 +254,112 @@ async def generate_document_mcqs(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"MCQ generation failed: {str(e)}")
     
+@router.get("/documents/{document_id}/insights")
+async def get_document_insights(
+    document_id: int,
+    user_id: int = Depends(get_current_user_id)
+):
+    """Get quick document insights — word count, page count, detected topics"""
+    file_path = get_document_path(document_id, user_id)
+ 
+    try:
+        from ..services.pdf_service import extract_text_from_pdf
+        import pdfplumber
+ 
+        page_count = 0
+        try:
+            with pdfplumber.open(file_path) as pdf:
+                page_count = len(pdf.pages)
+        except Exception:
+            pass
+ 
+        text = extract_text_from_pdf(file_path)
+        words = text.split()
+        word_count = len(words)
+        char_count = len(text)
+ 
+        reading_time = max(1, round(word_count / 200))
+ 
 
+        stop_words = {
+            'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
+            'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could',
+            'should', 'may', 'might', 'can', 'shall', 'to', 'of', 'in', 'for',
+            'on', 'with', 'at', 'by', 'from', 'as', 'into', 'through', 'during',
+            'before', 'after', 'above', 'below', 'between', 'out', 'off', 'over',
+            'under', 'again', 'further', 'then', 'once', 'here', 'there', 'when',
+            'where', 'why', 'how', 'all', 'each', 'every', 'both', 'few', 'more',
+            'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own',
+            'same', 'so', 'than', 'too', 'very', 'just', 'because', 'but', 'and',
+            'or', 'if', 'while', 'about', 'up', 'down', 'that', 'this', 'these',
+            'those', 'it', 'its', 'he', 'she', 'they', 'them', 'their', 'his',
+            'her', 'we', 'our', 'you', 'your', 'what', 'which', 'who', 'whom',
+            'also', 'any', 'many', 'much', 'well', 'still', 'even', 'back',
+            'long', 'one', 'two', 'three', 'four', 'five', 'make', 'like',
+            'new', 'first', 'last', 'get', 'made', 'find', 'know', 'take',
+            'come', 'think', 'see', 'look', 'want', 'give', 'use', 'used',
+            'using', 'called', 'known', 'different', 'part', 'number', 'way',
+            'said', 'however', 'since', 'include', 'includes', 'including',
+            'within', 'without', 'example', 'another', 'found', 'following',
+        }
+ 
+        from collections import Counter
+        word_freq = Counter()
+        for w in words:
+            cleaned = w.strip('.,;:!?()[]{}"\'-/\\').lower()
+            if len(cleaned) >= 4 and cleaned not in stop_words and cleaned.isalpha():
+                word_freq[cleaned] += 1
+ 
+        top_keywords = [word for word, count in word_freq.most_common(30) if count >= 3]
+ 
+        sections = []
+        for line in text.split('\n'):
+            line = line.strip()
+            if 5 < len(line) < 80 and not line.endswith('.') and not line.endswith(','):
+                words_in_line = line.split()
+                if 2 <= len(words_in_line) <= 8:
+                    # Check if mostly capitalized
+                    caps_count = sum(1 for w in words_in_line if w[0].isupper())
+                    if caps_count >= len(words_in_line) * 0.6:
+                        if line not in sections and len(sections) < 15:
+                            sections.append(line)
+ 
+        topics = []
+        try:
+            from ..services.model_manager import ModelManager
+            manager = ModelManager.get_instance()
+            if manager.use_groq_fallback:
+                prompt = f"""From this text excerpt, identify the 5-8 main topics or subjects covered. Return ONLY a comma-separated list of topic names, nothing else.
+ 
+Text: {text[:3000]}
+ 
+Topics:"""
+                response = manager.generate_groq(prompt, system_prompt="Return only a comma-separated list of topics. No numbering, no explanations.", max_tokens=150)
+                topics = [t.strip().strip('.-*') for t in response.split(',') if len(t.strip()) > 2 and len(t.strip()) < 50]
+                topics = topics[:8]
+        except Exception as e:
+            print(f"[Insights] AI topic detection failed: {e}")
+ 
+        # Fallback: use top keywords as topics if AI failed
+        if not topics:
+            topics = [w.capitalize() for w in top_keywords[:8]]
+ 
+        return {
+            "document_id": document_id,
+            "page_count": page_count,
+            "word_count": word_count,
+            "char_count": char_count,
+            "reading_time_minutes": reading_time,
+            "topics": topics,
+            "sections": sections[:10],
+            "top_keywords": top_keywords[:15],
+        }
+ 
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="PDF file not found")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+ 
 
 @router.post("/documents/{document_id}/recommendations")
 async def generate_study_recommendations(

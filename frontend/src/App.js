@@ -1,12 +1,13 @@
 // frontend/src/App.js
 import React from "react";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import {
   BrowserRouter as Router,
   Routes,
   Route,
   Navigate,
+  useLocation,
 } from "react-router-dom";
-import { AuthProvider } from "./context/AuthContext";
 import { createTheme, ThemeProvider, CssBaseline } from "@mui/material";
 
 import LandingPage from "./pages/LandingPage";
@@ -36,6 +37,14 @@ const theme = createTheme({
     fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
   },
 });
+
+function ConditionalTimer() {
+  const { user } = useAuth();
+  const location = window.location.pathname;
+  const publicPages = ["/", "/login", "/register"];
+  if (!user || publicPages.includes(location)) return null;
+  return <StudyTimer />;
+}
 
 function App() {
   return (
@@ -113,7 +122,7 @@ function App() {
               }
             />
           </Routes>
-          <StudyTimer />
+          <ConditionalTimer />
         </AuthProvider>
       </Router>
     </ThemeProvider>
