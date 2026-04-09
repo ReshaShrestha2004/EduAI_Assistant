@@ -144,39 +144,20 @@ export function getDocumentMastery(documentId, cards) {
 /**
  * Get confidence label and color
  */
-export function getConfidenceDisplay(confidence) {
-  switch (confidence) {
-    case 0:
-      return {
-        label: "New",
-        color: "rgba(255,255,255,0.4)",
-        bg: "rgba(255,255,255,0.06)",
-      };
-    case 1:
-      return {
-        label: "Learning",
-        color: "#F5576C",
-        bg: "rgba(245,87,108,0.12)",
-      };
-    case 2:
-      return {
-        label: "Reviewing",
-        color: "#FFD93D",
-        bg: "rgba(255,217,61,0.12)",
-      };
-    case 3:
-      return {
-        label: "Mastered",
-        color: "#6BCF7F",
-        bg: "rgba(107,207,127,0.12)",
-      };
-    default:
-      return {
-        label: "New",
-        color: "rgba(255,255,255,0.4)",
-        bg: "rgba(255,255,255,0.06)",
-      };
-  }
+export function getConfidenceDisplay(confidence, reviews = 0) {
+  if (reviews === 0)
+    return {
+      label: "New",
+      color: "rgba(255,255,255,0.4)",
+      bg: "rgba(255,255,255,0.06)",
+    };
+  if (confidence >= 3)
+    return { label: "Got It", color: "#6BCF7F", bg: "rgba(107,207,127,0.12)" };
+  return {
+    label: "Needs Review",
+    color: "#F5576C",
+    bg: "rgba(245,87,108,0.12)",
+  };
 }
 
 export function resetDocument(documentId) {

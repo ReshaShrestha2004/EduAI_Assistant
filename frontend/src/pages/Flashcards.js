@@ -3,6 +3,15 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
 import {
+  recordResponse,
+  sortBySpacedRepetition,
+  getDocumentMastery,
+  getConfidenceDisplay,
+  getCardStats,
+  resetDocument,
+} from "../utils/spacedRepetition";
+import TrendingUp from "@mui/icons-material/TrendingUp";
+import {
   Box,
   Container,
   Typography,
@@ -132,6 +141,7 @@ export default function Flashcards() {
   const [masteredCards, setMasteredCards] = useState(new Set());
   const [aiMode, setAiMode] = useState("local");
   const [modelUsed, setModelUsed] = useState("");
+  const [reviewCount, setReviewCount] = useState(0);
 
   useEffect(() => {
     fetchDocuments();
@@ -227,15 +237,15 @@ export default function Flashcards() {
     setFlipped(false);
     setMasteredCards(new Set());
     setDifficultyFilter("all");
+    if (selectedDocumentId) {
+      resetDocument(selectedDocumentId);
+      setReviewCount((p) => p + 1);
+    }
   };
-  const progress =
-    filteredCards.length > 0
-      ? Math.round(
-          (filteredCards.filter((c) => masteredCards.has(c.id)).length /
-            filteredCards.length) *
-            100,
-        )
-      : 0;
+  const mastery = selectedDocumentId
+    ? getDocumentMastery(selectedDocumentId, filteredCards, reviewCount)
+    : { masteryPercent: 0, mastered: 0, learning: 0, unseen: 0 };
+  const progress = mastery.masteryPercent;
 
   return (
     <PageContainer>
@@ -520,7 +530,7 @@ export default function Flashcards() {
                     {filteredCards.length} Cards
                   </Typography>
                   <Chip
-                    label={`${progress}% Mastered`}
+                    label={`${mastery.mastered} mastered · ${mastery.learning} learning · ${mastery.unseen} new`}
                     sx={{
                       background:
                         progress === 100
@@ -581,6 +591,22 @@ export default function Flashcards() {
                       <Shuffle />
                     </IconButton>
                   </Tooltip>
+                  <Tooltip title="Smart Review (weakest first)">
+                    <IconButton
+                      onClick={() => {
+                        const sorted = sortBySpacedRepetition(
+                          selectedDocumentId,
+                          flashcards,
+                        );
+                        setFlashcards(sorted);
+                        setCurrentIndex(0);
+                        setFlipped(false);
+                      }}
+                      sx={{ color: "#8A54FF" }}
+                    >
+                      <TrendingUp />
+                    </IconButton>
+                  </Tooltip>
                   <Tooltip title="Reset">
                     <IconButton
                       onClick={handleReset}
@@ -637,6 +663,31 @@ export default function Flashcards() {
                         size="small"
                         sx={{ position: "absolute", top: 20, right: 20 }}
                       />
+                      {(() => {
+                        const stats = getCardStats(
+                          selectedDocumentId,
+                          currentCard,
+                        );
+                        const conf = getConfidenceDisplay(
+                          stats.confidence,
+                          stats.reviews,
+                        );
+                        return (
+                          <Chip
+                            label={conf.label}
+                            size="small"
+                            sx={{
+                              position: "absolute",
+                              top: 56,
+                              right: 20,
+                              background: conf.bg,
+                              color: conf.color,
+                              fontWeight: 600,
+                              fontSize: "11px",
+                            }}
+                          />
+                        );
+                      })()}
                       <Chip
                         label={currentCard.type}
                         size="small"
@@ -759,35 +810,55 @@ export default function Flashcards() {
                   </IconButton>
                 </Box>
 
-                <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "center",
+                    gap: 2,
+                    mt: 3,
+                  }}
+                >
                   <Button
-                    variant={
-                      masteredCards.has(currentCard.id)
-                        ? "contained"
-                        : "outlined"
-                    }
-                    startIcon={<CheckCircle />}
-                    onClick={handleMarkMastered}
+                    onClick={() => {
+                      recordResponse(selectedDocumentId, currentCard, "wrong");
+                      setReviewCount((p) => p + 1);
+                      handleNext();
+                    }}
                     sx={{
                       borderRadius: "12px",
                       textTransform: "none",
                       fontWeight: 600,
                       px: 4,
-                      ...(masteredCards.has(currentCard.id)
-                        ? {
-                            background:
-                              "linear-gradient(135deg, #6BCF7F, #4ECDC4)",
-                            color: "#fff",
-                          }
-                        : {
-                            borderColor: "rgba(107,207,127,0.5)",
-                            color: "#6BCF7F",
-                          }),
+                      py: 1.2,
+                      background: "rgba(245,87,108,0.1)",
+                      color: "#F5576C",
+                      border: "1px solid rgba(245,87,108,0.2)",
+                      fontSize: "15px",
+                      "&:hover": { background: "rgba(245,87,108,0.2)" },
                     }}
                   >
-                    {masteredCards.has(currentCard.id)
-                      ? "Mastered!"
-                      : "Mark as Mastered"}
+                    Review Again
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      recordResponse(selectedDocumentId, currentCard, "easy");
+                      setReviewCount((p) => p + 1);
+                      handleNext();
+                    }}
+                    sx={{
+                      borderRadius: "12px",
+                      textTransform: "none",
+                      fontWeight: 600,
+                      px: 4,
+                      py: 1.2,
+                      background: "rgba(107,207,127,0.1)",
+                      color: "#6BCF7F",
+                      border: "1px solid rgba(107,207,127,0.2)",
+                      fontSize: "15px",
+                      "&:hover": { background: "rgba(107,207,127,0.2)" },
+                    }}
+                  >
+                    Got It
                   </Button>
                 </Box>
               </Box>
